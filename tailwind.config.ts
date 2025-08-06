@@ -92,6 +92,10 @@ const config: Config = {
           "50%": { transform: "translateX(-5px) translateY(-10px)" },
           "75%": { transform: "translateX(-3px) translateY(-2px)" },
         },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -99,6 +103,7 @@ const config: Config = {
         "gentle-pulse": "gentle-pulse 4s ease-in-out infinite",
         "float": "float 3s ease-in-out infinite",
         "drift": "drift 6s ease-in-out infinite",
+        "shimmer": "shimmer 2s infinite linear",
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'sans-serif'],

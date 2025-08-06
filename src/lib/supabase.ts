@@ -6,6 +6,12 @@ const config = getEnvironmentConfig()
 const { url: supabaseUrl, anonKey: supabaseAnonKey } = config.supabase
 
 // Create Supabase client with enhanced configuration
+console.log('Supabase: Initializing client with config:', {
+  url: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  keyLength: supabaseAnonKey?.length
+});
+
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -18,6 +24,8 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     }
   }
 })
+
+console.log('Supabase: Client created successfully');
 
 // Connection health check function
 export async function checkSupabaseConnection(): Promise<{

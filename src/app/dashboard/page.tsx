@@ -35,8 +35,11 @@ import {
   Download,
   RefreshCw
 } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Mock data for climate tech funding
+// Static user data (not from API)
 const user = {
   id: "1",
   name: "Alex Chen",
@@ -45,64 +48,70 @@ const user = {
   email: "alex.chen@climatevc.com"
 };
 
-const dashboardStats = {
-  totalDeals: 629,
-  totalFunding: 225,
-  companies: 731,
-  investors: 810
-};
-
-const recentDeals = [
-  { id: "1", company: "SolarNext", type: "Series A", date: "12-Jun-2024", amount: "$15M" },
-  { id: "2", company: "CleanWave", type: "Seed Round", date: "11-Jun-2024", amount: "$8M" },
-  { id: "3", company: "EcoFlow Dynamics", type: "Series B", date: "10-Jun-2024", amount: "$32M" },
-  { id: "4", company: "GreenTech Solutions", type: "Early Stage VC", date: "09-Jun-2024", amount: "$12M" },
-  { id: "5", company: "Carbon Capture Co", type: "Corporate Asset Purchase", date: "08-Jun-2024", amount: "$25M" },
-];
-
-const quickCounts = [
-  { label: "Companies", value: "629,225", sublabel: "Pre-venture", subvalue: "140,469" },
-  { label: "Investments", value: "731,819", sublabel: "Angel & Seed", subvalue: "112,678" },
-  { label: "Venture Capital", value: "106,734", sublabel: "VC Deals", subvalue: "104,362" },
-  { label: "Private Equity", value: "106,974", sublabel: "PE Deals", subvalue: "158,329" },
-  { label: "M&A", value: "179,829", sublabel: "Strategic M&A", subvalue: "106,251" },
-  { label: "Other Listed", value: "75,929", sublabel: "Other", subvalue: "89,364" },
-];
-
-const topCompany = {
-  name: "ClimateCore",
-  type: "Social/Platform Software",
-  location: "Menlo Park, CA",
-  lastInv: "Series B",
-  lastDate: "May-2024",
-  investors: 92,
-  people: 18770,
-  weeklyGrowth: "0.01%",
-  medianValue: "326K"
-};
-
+// Static news data (placeholder until news API is implemented)
 const newsItems = [
   {
-    title: "Tesla launches new $15M Series A",
-    description: "App focused platform for creating an end-to-end platform that enables...",
+    title: "Climate Tech Funding Reaches Record Highs",
+    description: "Investment in climate technology companies continues to grow as investors seek sustainable solutions...",
     date: "2w",
-    source: "PitchBook"
+    source: "Climate Tech News"
   },
   {
-    title: "Uber threatens to fire engineer at center of Waymo suit",
-    description: "Another day and another piece of Uber news. The ridesharing giant has reportedly...",
+    title: "New Carbon Capture Technologies Show Promise",
+    description: "Recent breakthroughs in direct air capture technology are attracting significant venture capital...",
     date: "3w",
-    source: "PitchBook"
+    source: "Climate Tech News"
   },
   {
-    title: "Everything Microsoft announced at Build 2017",
-    description: "At Microsoft's annual Build developer conference came lots and more...",
+    title: "Renewable Energy Startups Lead Funding Rounds",
+    description: "Solar and wind energy companies dominate the latest funding announcements in the climate sector...",
     date: "4w",
-    source: "PitchBook"
+    source: "Climate Tech News"
   }
 ];
 
 export default function Dashboard() {
+  const { metrics, recentDeals, loading, error, refetch } = useDashboardData({
+    recentDealsLimit: 5,
+    enableAutoRefresh: true,
+    autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Debug logging
+  console.log('🎯 Dashboard render:', {
+    loading,
+    error,
+    metricsLoaded: !!metrics,
+    recentDealsCount: recentDeals?.length || 0
+  });
+
+  // Show loading state
+  if (loading) {
+    console.log('⏳ Dashboard: Showing loading state');
+    return <DashboardSkeleton />;
+  }
+
+  // Show error state with retry option
+  if (error) {
+    console.error('❌ Dashboard: Showing error state:', error);
+    return (
+      <div className="min-h-screen bg-brand-blue/20 flex items-center justify-center">
+        <Card className="max-w-md mx-auto bg-white/90 backdrop-blur-sm">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Unable to Load Dashboard</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={refetch} className="bg-brand-yellow hover:bg-brand-yellow/90">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  console.log('✅ Dashboard: Rendering main dashboard with data');
+
   return (
     <div className="min-h-screen bg-brand-blue/20 relative overflow-hidden flex">
       {/* Animated Background Elements */}
@@ -194,10 +203,16 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold font-heading text-brand-yellow">MooMoo Climate</h1>
-              <Button variant="outline" size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add widgets
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add widgets
+                </Button>
+                <Button variant="outline" size="sm" onClick={refetch}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="relative">
@@ -295,16 +310,32 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {quickCounts.slice(0, 6).map((item, index) => (
+                  {/* Top Sectors */}
+                  {metrics?.topSectors?.slice(0, 6).map((sector, index) => (
                     <div key={index} className="flex justify-between items-center">
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-700">{item.label}</span>
-                          <span className="text-sm font-medium">{item.value}</span>
+                          <span className="text-sm text-gray-700">{sector.sector}</span>
+                          <span className="text-sm font-medium">{sector.dealCount}</span>
                         </div>
                         <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>{item.sublabel}</span>
-                          <span>{item.subvalue}</span>
+                          <span>Deals</span>
+                          <span>${(sector.totalFunding / 1000000).toFixed(1)}M</span>
+                        </div>
+                      </div>
+                    </div>
+                  )) || 
+                  // Fallback if no sector data
+                  Array.from({ length: 6 }, (_, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-700">Loading...</span>
+                          <span className="text-sm font-medium">-</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>-</span>
+                          <span>-</span>
                         </div>
                       </div>
                     </div>
@@ -375,13 +406,13 @@ export default function Dashboard() {
                   </div>
                   {recentDeals.map((deal) => (
                     <div key={deal.id} className="flex justify-between items-center text-sm">
-                      <span className="text-blue-600 hover:underline cursor-pointer">{deal.company}</span>
-                      <span className="text-gray-600">{deal.type}</span>
-                      <span className="text-gray-500">{deal.date}</span>
+                      <span className="text-blue-600 hover:underline cursor-pointer">{deal.companyName}</span>
+                      <span className="text-gray-600">{deal.fundingStage || 'N/A'}</span>
+                      <span className="text-gray-500">{deal.formattedDate}</span>
                     </div>
                   ))}
                   <Button variant="outline" size="sm" className="w-full mt-4">
-                    View All (36,175)
+                    View All ({metrics?.totalDeals || 0})
                   </Button>
                 </div>
               </CardContent>
@@ -397,32 +428,38 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-blue-600 mb-1">{topCompany.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{topCompany.type} • {topCompany.location}</p>
-                    
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                      <div>
-                        <p className="text-gray-500">Last Inv. Type</p>
-                        <p className="font-medium">{topCompany.lastInv}</p>
+                  {recentDeals.length > 0 ? (
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-600 mb-1">{recentDeals[0].companyName}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{recentDeals[0].climateSector} • {recentDeals[0].country}</p>
+                      
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div>
+                          <p className="text-gray-500">Funding Stage</p>
+                          <p className="font-medium">{recentDeals[0].fundingStage || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Date</p>
+                          <p className="font-medium">{recentDeals[0].formattedDate}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Amount</p>
+                          <p className="font-medium">{recentDeals[0].formattedAmount}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-500">Last Inv. Date</p>
-                        <p className="font-medium">{topCompany.lastDate}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Investors</p>
-                        <p className="font-medium">{topCompany.investors}</p>
+                      
+                      <div className="mt-4 space-y-2">
+                        <div className="text-center">
+                          <span className="text-lg font-bold">{recentDeals[0].daysAgo}</span>
+                          <p className="text-xs text-gray-500">Days Ago</p>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <div className="text-center">
-                        <span className="text-lg font-bold">{topCompany.people}</span>
-                        <p className="text-xs text-gray-500">People</p>
-                      </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No recent deals available</p>
                     </div>
-                  </div>
+                  )}
                   
                   {/* Growth Indicators */}
                   <div className="flex space-x-4">
@@ -431,12 +468,12 @@ export default function Dashboard() {
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                           <circle cx="50" cy="50" r="40" stroke="#f3f3f3" strokeWidth="8" fill="none" />
                           <circle cx="50" cy="50" r="40" stroke="#F7D774" strokeWidth="8" fill="none" 
-                                  strokeDasharray="5 245" className="transition-all duration-300" />
+                                  strokeDasharray={`${(metrics?.growthRate || 0) * 2.5} 245`} className="transition-all duration-300" />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="text-sm font-bold">{topCompany.weeklyGrowth}</div>
-                            <div className="text-xs text-gray-500">Weekly Growth</div>
+                            <div className="text-sm font-bold">{metrics?.growthRate?.toFixed(1) || '0'}%</div>
+                            <div className="text-xs text-gray-500">Growth Rate</div>
                           </div>
                         </div>
                       </div>
@@ -450,8 +487,10 @@ export default function Dashboard() {
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="text-sm font-bold">{topCompany.medianValue}</div>
-                            <div className="text-xs text-gray-500">Median</div>
+                            <div className="text-sm font-bold">
+                              ${metrics?.averageDealSize ? (metrics.averageDealSize / 1000000).toFixed(1) : '0'}M
+                            </div>
+                            <div className="text-xs text-gray-500">Avg Deal</div>
                           </div>
                         </div>
                       </div>
@@ -545,19 +584,21 @@ export default function Dashboard() {
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-gradient-to-br from-brand-yellow/20 to-brand-yellow/10 rounded-lg border border-brand-yellow/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.totalDeals}</div>
+                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalDeals || 0}</div>
                     <div className="text-sm text-brand-charcoal/70">Total Deals</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-brand-green/20 to-brand-green/10 rounded-lg border border-brand-green/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">${dashboardStats.totalFunding}B</div>
+                    <div className="text-2xl font-bold text-brand-charcoal">
+                      ${metrics?.totalFunding ? (metrics.totalFunding / 1000000000).toFixed(1) : '0'}B
+                    </div>
                     <div className="text-sm text-brand-charcoal/70">Total Funding</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-brand-blue/20 to-brand-blue/10 rounded-lg border border-brand-blue/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.companies}</div>
+                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalCompanies || 0}</div>
                     <div className="text-sm text-brand-charcoal/70">Companies</div>
                   </div>
                   <div className="text-center p-4 bg-gradient-to-br from-gray-200/50 to-gray-100/30 rounded-lg border border-gray-200/30 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.investors}</div>
+                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalInvestors || 0}</div>
                     <div className="text-sm text-brand-charcoal/70">Investors</div>
                   </div>
                 </div>

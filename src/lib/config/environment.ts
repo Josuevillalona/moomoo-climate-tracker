@@ -20,12 +20,22 @@ export interface EnvironmentConfig {
  * Throws detailed errors if required variables are missing or invalid
  */
 export function getEnvironmentConfig(): EnvironmentConfig {
+  console.log('Environment: Getting configuration...');
+  
   // Supabase configuration
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+  console.log('Environment: Checking variables...', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlPreview: supabaseUrl?.substring(0, 30) + '...',
+    keyPreview: supabaseAnonKey?.substring(0, 20) + '...'
+  });
+
   // Validate Supabase URL
   if (!supabaseUrl) {
+    console.error('Environment: Missing NEXT_PUBLIC_SUPABASE_URL');
     throw new Error(
       'NEXT_PUBLIC_SUPABASE_URL is required. ' +
       'Please add it to your .env.local file. ' +
@@ -35,6 +45,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
 
   // Validate Supabase anon key
   if (!supabaseAnonKey) {
+    console.error('Environment: Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
     throw new Error(
       'NEXT_PUBLIC_SUPABASE_ANON_KEY is required. ' +
       'Please add it to your .env.local file. ' +

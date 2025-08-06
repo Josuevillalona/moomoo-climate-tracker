@@ -83,6 +83,8 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
   const fetchDashboardData = useCallback(async (isRefetch: boolean = false) => {
     if (!mountedRef.current) return;
 
+    console.log('useDashboardData: Starting data fetch', { isRefetch });
+
     try {
       if (isRefetch) {
         setIsRefetching(true);
@@ -91,16 +93,24 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
       }
       setError(null);
 
+      console.log('useDashboardData: Calling API services...');
+
       // Fetch metrics and recent deals in parallel
       const [metricsResponse, dealsResponse] = await Promise.all([
         FundingService.getDashboardMetrics(),
         FundingService.getRecentDeals(opts.recentDealsLimit)
       ]);
 
+      console.log('useDashboardData: API responses received', {
+        metricsResponse,
+        dealsResponse
+      });
+
       if (!mountedRef.current) return;
 
       // Handle metrics response
       if (metricsResponse.error) {
+        console.error('useDashboardData: Metrics error:', metricsResponse.error);
         throw new ApiException(
           ApiErrorType.DATABASE_ERROR,
           `Failed to fetch dashboard metrics: ${metricsResponse.error}`,
@@ -110,12 +120,18 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
 
       // Handle deals response
       if (dealsResponse.error) {
+        console.error('useDashboardData: Deals error:', dealsResponse.error);
         throw new ApiException(
           ApiErrorType.DATABASE_ERROR,
           `Failed to fetch recent deals: ${dealsResponse.error}`,
           true
         );
       }
+
+      console.log('useDashboardData: Setting state with data', {
+        metrics: metricsResponse.data,
+        deals: dealsResponse.data
+      });
 
       // Update state with successful data
       setMetrics(metricsResponse.data);
@@ -126,12 +142,15 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
     } catch (error) {
       if (!mountedRef.current) return;
 
+      console.error('useDashboardData: Error occurred:', error);
+
       const errorMessage = error instanceof ApiException 
         ? error.message 
         : error instanceof Error 
           ? error.message 
           : 'An unexpected error occurred while fetching dashboard data';
 
+      console.log('useDashboardData: Setting error state:', errorMessage);
       setError(errorMessage);
       
       // Don't clear existing data on refetch errors to maintain UX
@@ -141,6 +160,7 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
       }
     } finally {
       if (mountedRef.current) {
+        console.log('useDashboardData: Fetch complete, setting loading states to false');
         setLoading(false);
         setIsRefetching(false);
       }

@@ -17,14 +17,23 @@ export class FundingService {
    * Fetch dashboard metrics including totals and aggregated data
    */
   static async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
+    console.log('FundingService.getDashboardMetrics: Starting...');
+    
     try {
       // Fetch all deals for metric calculations
+      console.log('FundingService.getDashboardMetrics: Querying Supabase...');
       const { data: deals, error } = await supabase
         .from('deals')
         .select('*')
-        .eq('status', 'PUBLISHED');
+        .eq('status', 'PROCESSED_AI');
+
+      console.log('FundingService.getDashboardMetrics: Supabase response:', { 
+        dealsCount: deals?.length, 
+        error: error?.message 
+      });
 
       if (error) {
+        console.error('FundingService.getDashboardMetrics: Database error:', error);
         throw new ApiException(
           ApiErrorType.DATABASE_ERROR,
           `Failed to fetch deals for metrics: ${error.message}`,
@@ -33,6 +42,7 @@ export class FundingService {
       }
 
       if (!deals || deals.length === 0) {
+        console.log('FundingService.getDashboardMetrics: No deals found, returning empty metrics');
         return {
           data: {
             totalDeals: 0,
@@ -50,7 +60,9 @@ export class FundingService {
       }
 
       // Calculate metrics from deals data
+      console.log('FundingService.getDashboardMetrics: Calculating metrics from', deals.length, 'deals');
       const metrics = this.calculateMetricsFromDeals(deals);
+      console.log('FundingService.getDashboardMetrics: Calculated metrics:', metrics);
 
       return {
         data: metrics,
@@ -58,6 +70,8 @@ export class FundingService {
         loading: false
       };
     } catch (error) {
+      console.error('FundingService.getDashboardMetrics: Caught error:', error);
+      
       const apiError = error instanceof ApiException 
         ? error 
         : new ApiException(
@@ -66,6 +80,7 @@ export class FundingService {
             true
           );
 
+      console.log('FundingService.getDashboardMetrics: Returning error response:', apiError.message);
       return {
         data: null,
         error: apiError.message,
@@ -78,15 +93,24 @@ export class FundingService {
    * Fetch recent deals with optional limit
    */
   static async getRecentDeals(limit: number = 5): Promise<ApiResponse<FundingDeal[]>> {
+    console.log('FundingService.getRecentDeals: Starting with limit:', limit);
+    
     try {
+      console.log('FundingService.getRecentDeals: Querying Supabase...');
       const { data: deals, error } = await supabase
         .from('deals')
         .select('*')
-        .eq('status', 'PUBLISHED')
+        .eq('status', 'PROCESSED_AI')
         .order('date_announced', { ascending: false })
         .limit(limit);
 
+      console.log('FundingService.getRecentDeals: Supabase response:', { 
+        dealsCount: deals?.length, 
+        error: error?.message 
+      });
+
       if (error) {
+        console.error('FundingService.getRecentDeals: Database error:', error);
         throw new ApiException(
           ApiErrorType.DATABASE_ERROR,
           `Failed to fetch recent deals: ${error.message}`,
@@ -94,7 +118,9 @@ export class FundingService {
         );
       }
 
+      console.log('FundingService.getRecentDeals: Transforming deals...');
       const transformedDeals = deals?.map(deal => this.transformDealForDisplay(deal)) || [];
+      console.log('FundingService.getRecentDeals: Transformed deals:', transformedDeals);
 
       return {
         data: transformedDeals,
@@ -102,6 +128,8 @@ export class FundingService {
         loading: false
       };
     } catch (error) {
+      console.error('FundingService.getRecentDeals: Caught error:', error);
+      
       const apiError = error instanceof ApiException 
         ? error 
         : new ApiException(
@@ -110,6 +138,7 @@ export class FundingService {
             true
           );
 
+      console.log('FundingService.getRecentDeals: Returning error response:', apiError.message);
       return {
         data: null,
         error: apiError.message,
@@ -126,7 +155,7 @@ export class FundingService {
       let query = supabase
         .from('deals')
         .select('*', { count: 'exact' })
-        .eq('status', 'PUBLISHED');
+        .eq('status', 'PROCESSED_AI');
 
       // Apply filters
       if (filters.fundingStage && filters.fundingStage.length > 0) {
