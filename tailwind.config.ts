@@ -51,12 +51,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand colors
+        // Brand colors (Updated to match landing page)
         'brand-yellow': '#F7D774',
         'brand-green': '#2E5E4E',
-        'brand-charcoal': '#2D2D2D',
+        'brand-charcoal': '#c1d0d3',
         'brand-gray': '#F3F3F3',
-        'brand-blue': '#AEE1F6',
+        'brand-blue': '#63b5e4',
+        // Additional colors from landing page
+        'brand-tree-dark': '#2e5e4e',
+        'brand-tree-medium': '#65962c',
+        'brand-tree-light': '#80cc28',
+        'brand-brown-dark': '#8d5b31',
+        'brand-brown-light': '#9b6736',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -72,14 +78,31 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "gentle-pulse": {
+          "0%, 100%": { opacity: "0.3", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.05)" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "drift": {
+          "0%, 100%": { transform: "translateX(0px) translateY(0px)" },
+          "25%": { transform: "translateX(5px) translateY(-5px)" },
+          "50%": { transform: "translateX(-5px) translateY(-10px)" },
+          "75%": { transform: "translateX(-3px) translateY(-2px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "gentle-pulse": "gentle-pulse 4s ease-in-out infinite",
+        "float": "float 3s ease-in-out infinite",
+        "drift": "drift 6s ease-in-out infinite",
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        heading: ['Poppins', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        heading: ['var(--font-poppins)', 'Poppins', 'sans-serif'],
       },
     },
   },

@@ -104,58 +104,83 @@ const newsItems = [
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-brand-blue/20 relative overflow-hidden flex">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-10 left-10 w-32 h-32 bg-brand-yellow/30 rounded-full blur-3xl animate-gentle-pulse"></div>
+        <div className="absolute top-1/3 right-20 w-40 h-40 bg-brand-tree-light/30 rounded-full blur-3xl animate-gentle-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/4 w-36 h-36 bg-brand-blue/30 rounded-full blur-3xl animate-gentle-pulse delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-brand-yellow/20 to-brand-tree-light/20 rounded-full blur-3xl animate-gentle-pulse delay-500"></div>
+        
+        {/* Subtle Pattern Overlay */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="w-full h-full" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232E5E4E' fill-opacity='0.4'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: '60px 60px'
+          }}></div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-20 right-1/4 w-4 h-4 bg-brand-yellow/40 rounded-full animate-float delay-300"></div>
+        <div className="absolute bottom-1/3 right-10 w-3 h-3 bg-brand-tree-medium/50 rounded-full animate-float delay-700"></div>
+        <div className="absolute top-1/2 left-10 w-5 h-5 bg-brand-blue/40 rounded-full animate-float delay-1100"></div>
+        
+        {/* Drifting Elements */}
+        <div className="absolute top-1/4 left-1/3 w-6 h-6 bg-brand-yellow/30 rounded-full animate-drift"></div>
+        <div className="absolute bottom-1/4 right-1/3 w-4 h-4 bg-brand-tree-light/40 rounded-full animate-drift delay-1500"></div>
+      </div>
+      
       {/* Sidebar */}
-      <div className="w-64 bg-brand-green text-white flex flex-col">
+      <div className="w-64 bg-brand-blue/95 backdrop-blur-sm text-white flex flex-col relative z-10">
         {/* Logo */}
-        <div className="p-6 border-b border-brand-green/20">
+        <div className="p-6 border-b border-brand-blue/20">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-brand-charcoal" />
             </div>
-            <h1 className="text-xl font-bold">Moo Climate</h1>
+            <h1 className="text-xl font-bold font-heading">MooMoo Climate</h1>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
-          <Button variant="secondary" className="w-full justify-start bg-brand-yellow text-brand-charcoal hover:bg-brand-yellow/90">
+          <Button variant="secondary" className="w-full justify-start bg-brand-yellow text-white hover:bg-brand-yellow/90">
             <Home className="w-4 h-4 mr-3" />
             Dashboard
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <Search className="w-4 h-4 mr-3" />
             Advanced Search
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <History className="w-4 h-4 mr-3" />
             History
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <Bookmark className="w-4 h-4 mr-3" />
             Saved Searches
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <Database className="w-4 h-4 mr-3" />
             Saved Lists
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <FileText className="w-4 h-4 mr-3" />
             Reports
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <MessageSquare className="w-4 h-4 mr-3" />
             News
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <Activity className="w-4 h-4 mr-3" />
             Plugins & Apps
           </Button>
         </nav>
 
         {/* Hide Sidebar Button */}
-        <div className="p-4 border-t border-brand-green/20">
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-green/80">
+        <div className="p-4 border-t border-brand-blue/20">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
             <ChevronRight className="w-4 h-4 mr-3" />
             Hide Sidebar
           </Button>
@@ -163,12 +188,12 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 p-4">
+        <header className="bg-white/90 backdrop-blur-sm border-b border-white/20 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-brand-charcoal">Dashboard</h1>
+              <h1 className="text-2xl font-bold font-heading text-brand-yellow">MooMoo Climate</h1>
               <Button variant="outline" size="sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Add widgets
@@ -196,26 +221,27 @@ export default function Dashboard() {
         </header>
 
         {/* Dashboard Content */}
-        <main className="flex-1 p-6 space-y-6 overflow-auto">
+        <main className="flex-1 p-6 space-y-6 overflow-auto relative z-10">
           {/* Top Row - Charts and Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Closed Deals Chart */}
-            <Card className="lg:col-span-1">
+            <Card className="lg:col-span-1 bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">CLOSED DEALS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLOSED DEALS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="h-48 flex items-center justify-center">
                   <div className="w-full space-y-2">
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-brand-charcoal/70">
                       <span>$10M</span>
                       <span>7,000</span>
                     </div>
-                    <div className="h-32 bg-gradient-to-r from-brand-green to-brand-yellow rounded-lg relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-t from-brand-green/20 to-transparent"></div>
+                    <div className="h-32 bg-gradient-to-r from-brand-green/80 to-brand-yellow/80 rounded-lg relative overflow-hidden shadow-inner">
+                      <div className="absolute inset-0 bg-gradient-to-t from-brand-green/30 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-brand-yellow/20 to-brand-blue/10"></div>
                       {/* Simulated line chart */}
                       <svg className="w-full h-full" viewBox="0 0 300 120">
                         <path
@@ -223,16 +249,18 @@ export default function Dashboard() {
                           stroke="#F7D774"
                           strokeWidth="3"
                           fill="none"
+                          className="drop-shadow-sm"
                         />
                         <path
                           d="M 20 90 Q 80 75 120 80 T 200 65 T 280 75"
                           stroke="#2E5E4E"
                           strokeWidth="3"
                           fill="none"
+                          className="drop-shadow-sm"
                         />
                       </svg>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-brand-charcoal/70">
                       <span>Oct</span>
                       <span>Nov</span>
                       <span>Dec</span>
@@ -258,11 +286,11 @@ export default function Dashboard() {
             </Card>
 
             {/* Quick Counts */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">QUICK COUNTS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">QUICK COUNTS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -286,23 +314,24 @@ export default function Dashboard() {
             </Card>
 
             {/* Deals by Regions - World Map */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">DEALS BY REGIONS</CardTitle>
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">DEALS BY REGIONS</CardTitle>
                   <div className="flex items-center space-x-2">
                     <select className="text-xs border border-gray-300 rounded px-2 py-1">
                       <option>World (21,093)</option>
                     </select>
-                    <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                    <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-48 bg-gradient-to-br from-brand-blue/20 to-brand-green/20 rounded-lg flex items-center justify-center relative overflow-hidden">
+                <div className="h-48 bg-gradient-to-br from-brand-blue/30 via-brand-yellow/20 to-brand-green/30 rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner">
+                  <div className="absolute inset-0 bg-gradient-to-t from-brand-green/10 to-brand-blue/10"></div>
                   <div className="text-center">
                     <Globe className="w-16 h-16 text-brand-green mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">World Map Visualization</p>
+                    <p className="text-sm text-brand-charcoal/70">World Map Visualization</p>
                     <div className="flex items-center justify-center space-x-4 mt-4 text-xs">
                       <div className="flex items-center space-x-1">
                         <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
@@ -330,11 +359,11 @@ export default function Dashboard() {
           {/* Second Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent SEC Filings */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -359,11 +388,11 @@ export default function Dashboard() {
             </Card>
 
             {/* Top Company Signals */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">TOP COMPANY SIGNALS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">TOP COMPANY SIGNALS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -433,11 +462,11 @@ export default function Dashboard() {
             </Card>
 
             {/* News Curated for You */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">CLIMATE TECH NEWS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE TECH NEWS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -469,11 +498,11 @@ export default function Dashboard() {
 
           {/* Third Row - Fund Returns Chart */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">CLIMATE FUND RETURNS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE FUND RETURNS</CardTitle>
+                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -509,27 +538,27 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Market Overview</CardTitle>
+                <CardTitle className="text-sm font-medium text-brand-charcoal">Market Overview</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-brand-yellow/10 rounded-lg">
+                  <div className="text-center p-4 bg-gradient-to-br from-brand-yellow/20 to-brand-yellow/10 rounded-lg border border-brand-yellow/20 shadow-sm">
                     <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.totalDeals}</div>
-                    <div className="text-sm text-gray-600">Total Deals</div>
+                    <div className="text-sm text-brand-charcoal/70">Total Deals</div>
                   </div>
-                  <div className="text-center p-4 bg-brand-green/10 rounded-lg">
+                  <div className="text-center p-4 bg-gradient-to-br from-brand-green/20 to-brand-green/10 rounded-lg border border-brand-green/20 shadow-sm">
                     <div className="text-2xl font-bold text-brand-charcoal">${dashboardStats.totalFunding}B</div>
-                    <div className="text-sm text-gray-600">Total Funding</div>
+                    <div className="text-sm text-brand-charcoal/70">Total Funding</div>
                   </div>
-                  <div className="text-center p-4 bg-brand-blue/10 rounded-lg">
+                  <div className="text-center p-4 bg-gradient-to-br from-brand-blue/20 to-brand-blue/10 rounded-lg border border-brand-blue/20 shadow-sm">
                     <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.companies}</div>
-                    <div className="text-sm text-gray-600">Companies</div>
+                    <div className="text-sm text-brand-charcoal/70">Companies</div>
                   </div>
-                  <div className="text-center p-4 bg-gray-100 rounded-lg">
+                  <div className="text-center p-4 bg-gradient-to-br from-gray-200/50 to-gray-100/30 rounded-lg border border-gray-200/30 shadow-sm">
                     <div className="text-2xl font-bold text-brand-charcoal">{dashboardStats.investors}</div>
-                    <div className="text-sm text-gray-600">Investors</div>
+                    <div className="text-sm text-brand-charcoal/70">Investors</div>
                   </div>
                 </div>
               </CardContent>
