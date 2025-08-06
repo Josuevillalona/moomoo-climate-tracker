@@ -7,23 +7,23 @@
   - Set up environment variable validation and error handling for the connection
   - _Requirements: 1.1, 6.2_
 
-- [ ] 2. Create API service layer and data types
+- [x] 2. Create API service layer and data types
 
-  - [ ] 2.1 Define TypeScript interfaces for funding data and API responses
+  - [x] 2.1 Define TypeScript interfaces for funding data and API responses
 
     - Create TypeScript interfaces matching your actual deals table schema (id, company_name, amount_raised, funding_stage, date_announced, etc.)
     - Define API response types for dashboard metrics and deal lists
     - Implement data transformation interfaces to convert database fields to UI-friendly formats
     - _Requirements: 1.1, 2.1_
 
-  - [ ] 2.2 Implement core API service functions
+  - [x] 2.2 Implement core API service functions
 
     - Create FundingService class with methods for fetching dashboard metrics
     - Implement functions to retrieve recent deals and filtered deal data
     - Add proper error handling and response transformation in API calls
     - _Requirements: 1.1, 1.3, 6.1_
 
-  - [ ] 2.3 Create data transformation utilities
+  - [x] 2.3 Create data transformation utilities
     - Implement functions to transform raw database data for dashboard display
     - Create currency and date formatting utilities
     - Build metric calculation functions from raw deal data
