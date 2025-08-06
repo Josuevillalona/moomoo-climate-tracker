@@ -1,6 +1,6 @@
 ---
 description: Backend development with FastAPI, Python, and Supabase focusing on data processing and API design
-tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'runTests', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI']
+tools: ['codebase', 'terminal', 'search', 'usages', 'findTestFiles', 'changes', 'problems', 'runCommands', 'runTests']
 model: Claude Sonnet 4
 ---
 
