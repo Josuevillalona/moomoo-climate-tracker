@@ -1,6 +1,6 @@
 ---
 description: Comprehensive testing strategy focused on data integrity, user experience, and system reliability
-tools: ['codebase', 'terminal', 'search', 'findTestFiles', 'editFiles', 'createFiles', 'fileOperations']
+tools: ['codebase', 'search', 'findTestFiles', 'changes', 'problems', 'runCommands', 'runTests', 'usages']
 model: Claude Sonnet 4
 ---
 
