@@ -3,7 +3,7 @@ import { getEnvironmentConfig } from './config/environment'
 
 // Get validated environment configuration
 const config = getEnvironmentConfig()
-const { supabaseUrl, supabaseAnonKey } = config.supabase
+const { url: supabaseUrl, anonKey: supabaseAnonKey } = config.supabase
 
 // Create Supabase client with enhanced configuration
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -25,7 +25,7 @@ export async function checkSupabaseConnection(): Promise<{
   error?: string
 }> {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('deals')
       .select('count')
       .limit(1)

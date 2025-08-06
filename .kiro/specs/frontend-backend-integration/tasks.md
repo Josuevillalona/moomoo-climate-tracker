@@ -29,16 +29,16 @@
     - Build metric calculation functions from raw deal data
     - _Requirements: 2.2, 2.3_
 
-- [ ] 3. Implement custom React hooks for data management
+- [x] 3. Implement custom React hooks for data management
 
-  - [ ] 3.1 Create useDashboardData hook
+  - [x] 3.1 Create useDashboardData hook
 
     - Implement hook to manage dashboard metrics and recent deals state
     - Add loading state management and error handling within the hook
     - Implement data refetching and cache invalidation logic
     - _Requirements: 1.1, 3.1, 3.2_
 
-  - [ ] 3.2 Create useRealTimeDeals hook for live updates
+  - [x] 3.2 Create useRealTimeDeals hook for live updates
     - Implement Supabase real-time subscription to listen for INSERT events on the deals table
     - Handle WebSocket connection state and automatic reconnection when connection drops
     - Add proper cleanup to unsubscribe when component unmounts

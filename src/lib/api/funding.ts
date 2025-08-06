@@ -218,14 +218,14 @@ export class FundingService {
     const channel = supabase
       .channel('deals-changes')
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: options.event || '*',
           schema: options.schema || 'public',
           table: options.table || 'deals',
           filter: options.filter
         },
-        (payload) => {
+        (payload: any) => {
           callback({
             eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
             new: payload.new as DatabaseDeal | null,
