@@ -1,6 +1,6 @@
 ---
 description: Frontend development with Next.js, TypeScript, and Tailwind CSS following brand guidelines
-tools: ['codebase', 'search', 'usages', 'findTestFiles', 'changes', 'problems', 'runCommands', 'runTests']
+tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'runTests', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI', 'activePullRequest', 'copilotCodingAgent', 'configurePythonEnvironment', 'getPythonEnvironmentInfo', 'getPythonExecutableCommand', 'installPythonPackage']
 model: Claude Sonnet 4
 ---
 

@@ -24,24 +24,24 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#F7D774", // Primary Yellow (Energy)
-          foreground: "#2D2D2D", // Charcoal Gray for text
+          DEFAULT: "#F7D774",
+          foreground: "#2D2D2D",
         },
         secondary: {
-          DEFAULT: "#2E5E4E", // Deep Green (Climate)
-          foreground: "#FFFFFF", // White for contrast
+          DEFAULT: "#2E5E4E",
+          foreground: "#FFFFFF",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
-          DEFAULT: "#F3F3F3", // Light Neutral Gray
-          foreground: "#2D2D2D", // Charcoal Gray
+          DEFAULT: "#F3F3F3",
+          foreground: "#2D2D2D",
         },
         accent: {
-          DEFAULT: "#63b5e4", // Azure (Sky)
-          foreground: "#2D2D2D", // Charcoal Gray
+          DEFAULT: "#AEE1F6",
+          foreground: "#2D2D2D",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -51,19 +51,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand colors (MooMoo Climate Refined Palette)
-        'brand-yellow': '#F7D774',      // Primary Yellow (Energy) - innovation, energy, optimism
-        'brand-green': '#2E5E4E',       // Deep Green (Climate) - environmental/climate connection
-        'brand-charcoal': '#2D2D2D',    // Charcoal Gray (Data) - clean, modern base for text and charts
-        'brand-gray': '#F3F3F3',        // Light Neutral Gray - background and neutral UI
-        'brand-white': '#FFFFFF',       // White - clean negative space
-        'brand-azure': '#63b5e4',       // Azure (Sky) - bright accent color
-        // Tree palette for nature/growth elements
-        'brand-tree-dark': '#2e5e4e',   // Deep forest green
-        'brand-tree-medium': '#65962c', // Medium green
-        'brand-tree-light': '#80cc28',  // Bright green
-        'brand-brown-dark': '#8d5b31',  // Dark earth brown
-        'brand-brown-light': '#9b6736', // Light earth brown
+        // Brand colors (Updated to match landing page)
+        'brand-yellow': '#F7D774',
+        'brand-green': '#2E5E4E',
+        'brand-charcoal': '#c1d0d3',
+        'brand-gray': '#F3F3F3',
+        'brand-blue': '#63b5e4',
+        // Additional colors from landing page
+        'brand-tree-dark': '#2e5e4e',
+        'brand-tree-medium': '#65962c',
+        'brand-tree-light': '#80cc28',
+        'brand-brown-dark': '#8d5b31',
+        'brand-brown-light': '#9b6736',
       },
       borderRadius: {
         lg: "var(--radius)",
