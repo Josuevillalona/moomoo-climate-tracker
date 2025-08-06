@@ -1,13 +1,58 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { getEnvironmentConfig } from './config/environment'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Get validated environment configuration
+const config = getEnvironmentConfig()
+const { supabaseUrl, supabaseAnonKey } = config.supabase
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+// Create Supabase client with enhanced configuration
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+// Connection health check function
+export async function checkSupabaseConnection(): Promise<{
+  connected: boolean
+  error?: string
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('deals')
+      .select('count')
+      .limit(1)
+      .single()
+
+    if (error) {
+      return {
+        connected: false,
+        error: `Database connection failed: ${error.message}`
+      }
+    }
+
+    return { connected: true }
+  } catch (error) {
+    return {
+      connected: false,
+      error: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Export configuration for debugging purposes (non-sensitive data only)
+export const supabaseConfig = {
+  url: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  keyLength: supabaseAnonKey.length
+}
 
 // Database types based on your schema
 export interface Deal {
