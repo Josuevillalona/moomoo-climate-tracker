@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   BarChart3, 
   Calendar, 
@@ -37,7 +39,32 @@ import {
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
+import { 
+  MetricsCardLoading,
+  TopMetricsLoading,
+  ChartCardLoading,
+  QuickCountsLoading,
+  WorldMapLoading,
+  RecentDealsLoading,
+  CompanySignalsLoading,
+  NewsLoading,
+  FundReturnsLoading,
+  LoadingTransition,
+  SectionLoadingIndicator
+} from "@/components/dashboard/LoadingStates";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { 
+  SectionErrorBoundary,
+  DashboardErrorFallback,
+  MetricsErrorFallback,
+  ChartErrorFallback,
+  RecentDealsErrorFallback,
+  WorldMapErrorFallback,
+  CompanySignalsErrorFallback,
+  NewsErrorFallback,
+  FundReturnsErrorFallback,
+  SectionErrorDisplay
+} from "@/components/dashboard/ErrorFallbacks";
 
 // Static user data (not from API)
 const user = {
@@ -71,48 +98,91 @@ const newsItems = [
 ];
 
 export default function Dashboard() {
-  const { metrics, recentDeals, loading, error, refetch } = useDashboardData({
+  const { metrics, recentDeals, loading, error, refetch, isRefetching } = useDashboardData({
     recentDealsLimit: 5,
     enableAutoRefresh: true,
     autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Progressive loading states for different sections
+  const [sectionsLoaded, setSectionsLoaded] = useState({
+    metrics: false,
+    recentDeals: false,
+    charts: false,
+    news: true // Static data, always "loaded"
+  });
+
+  // Update section loading states based on data availability
+  useEffect(() => {
+    setSectionsLoaded({
+      metrics: !!metrics,
+      recentDeals: recentDeals.length > 0,
+      charts: !!metrics, // Charts depend on metrics
+      news: true
+    });
+  }, [metrics, recentDeals]);
 
   // Debug logging
   console.log('🎯 Dashboard render:', {
     loading,
     error,
     metricsLoaded: !!metrics,
-    recentDealsCount: recentDeals?.length || 0
+    recentDealsCount: recentDeals?.length || 0,
+    sectionsLoaded
   });
 
-  // Show loading state
-  if (loading) {
-    console.log('⏳ Dashboard: Showing loading state');
+  // Show full loading skeleton only on initial load
+  if (loading && !metrics && recentDeals.length === 0) {
+    console.log('⏳ Dashboard: Showing initial loading state');
     return <DashboardSkeleton />;
   }
 
-  // Show error state with retry option
-  if (error) {
+  // Show error state with retry option - only for complete failure
+  if (error && !metrics && recentDeals.length === 0) {
     console.error('❌ Dashboard: Showing error state:', error);
     return (
-      <div className="min-h-screen bg-brand-blue/20 flex items-center justify-center">
-        <Card className="max-w-md mx-auto bg-white/90 backdrop-blur-sm">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Unable to Load Dashboard</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={refetch} className="bg-brand-yellow hover:bg-brand-yellow/90">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <ErrorBoundary
+        fallback={(appError, retry) => (
+          <DashboardErrorFallback error={appError} retry={retry} />
+        )}
+        maxRetries={3}
+      >
+        <div className="min-h-screen bg-brand-blue/20 flex items-center justify-center">
+          <Card className="max-w-md mx-auto bg-white/90 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <SectionErrorDisplay
+                error={{
+                  type: 'DATABASE_ERROR' as any,
+                  message: error,
+                  retryable: true,
+                  timestamp: new Date(),
+                  userMessage: error,
+                  technicalDetails: 'Dashboard data fetch failed'
+                }}
+                retry={refetch}
+                sectionName="Dashboard"
+                className="text-center"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </ErrorBoundary>
     );
   }
 
-  console.log('✅ Dashboard: Rendering main dashboard with data');
+  console.log('✅ Dashboard: Rendering main dashboard with progressive loading');
 
   return (
+    <ErrorBoundary
+      fallback={(appError, retry) => (
+        <DashboardErrorFallback error={appError} retry={retry} />
+      )}
+      onError={(appError) => {
+        console.error('Global dashboard error:', appError);
+      }}
+      maxRetries={3}
+      resetKeys={[metrics?.totalDeals, recentDeals.length].filter(key => key !== undefined)}
+    >
     <div className="min-h-screen bg-brand-blue/20 relative overflow-hidden flex">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -237,376 +307,534 @@ export default function Dashboard() {
 
         {/* Dashboard Content */}
         <main className="flex-1 p-6 space-y-6 overflow-auto relative z-10">
+          {/* Refresh indicator */}
+          {isRefetching && (
+            <div className="fixed top-20 right-6 z-50 bg-brand-yellow/90 backdrop-blur-sm text-brand-charcoal px-4 py-2 rounded-lg shadow-lg animate-slide-up">
+              <div className="flex items-center space-x-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Refreshing data...</span>
+              </div>
+            </div>
+          )}
+
           {/* Top Row - Charts and Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Closed Deals Chart */}
-            <Card className="lg:col-span-1 bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLOSED DEALS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 flex items-center justify-center">
-                  <div className="w-full space-y-2">
-                    <div className="flex justify-between text-xs text-brand-charcoal/70">
-                      <span>$10M</span>
-                      <span>7,000</span>
+            <SectionErrorBoundary
+              sectionName="Closed Deals Chart"
+              fallback={(error, retry) => (
+                <ChartErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[metrics?.totalDeals].filter(key => key !== undefined)}
+            >
+              <LoadingTransition
+                isLoading={!sectionsLoaded.charts}
+                loadingComponent={<ChartCardLoading />}
+                delay={100}
+              >
+                <Card className="lg:col-span-1 bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLOSED DEALS</CardTitle>
+                      <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
-                    <div className="h-32 bg-gradient-to-r from-brand-green/80 to-brand-yellow/80 rounded-lg relative overflow-hidden shadow-inner">
-                      <div className="absolute inset-0 bg-gradient-to-t from-brand-green/30 to-transparent"></div>
-                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-brand-yellow/20 to-brand-blue/10"></div>
-                      {/* Simulated line chart */}
-                      <svg className="w-full h-full" viewBox="0 0 300 120">
-                        <path
-                          d="M 20 80 Q 80 60 120 70 T 200 50 T 280 65"
-                          stroke="#F7D774"
-                          strokeWidth="3"
-                          fill="none"
-                          className="drop-shadow-sm"
-                        />
-                        <path
-                          d="M 20 90 Q 80 75 120 80 T 200 65 T 280 75"
-                          stroke="#2E5E4E"
-                          strokeWidth="3"
-                          fill="none"
-                          className="drop-shadow-sm"
-                        />
-                      </svg>
-                    </div>
-                    <div className="flex justify-between text-xs text-brand-charcoal/70">
-                      <span>Oct</span>
-                      <span>Nov</span>
-                      <span>Dec</span>
-                      <span>Jan</span>
-                      <span>Feb</span>
-                      <span>Mar</span>
-                      <span>Apr</span>
-                      <span>May</span>
-                    </div>
-                    <div className="flex items-center space-x-4 text-xs">
-                      <div className="flex items-center space-x-1">
-                        <div className="w-3 h-3 bg-brand-yellow rounded-sm"></div>
-                        <span># of Deals</span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="w-full space-y-2">
+                        <div className="flex justify-between text-xs text-brand-charcoal/70">
+                          <span>$10M</span>
+                          <span>7,000</span>
+                        </div>
+                        <div className="h-32 bg-gradient-to-r from-brand-green/80 to-brand-yellow/80 rounded-lg relative overflow-hidden shadow-inner">
+                          <div className="absolute inset-0 bg-gradient-to-t from-brand-green/30 to-transparent"></div>
+                          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-brand-yellow/20 to-brand-blue/10"></div>
+                          {/* Simulated line chart */}
+                          <svg className="w-full h-full" viewBox="0 0 300 120">
+                            <path
+                              d="M 20 80 Q 80 60 120 70 T 200 50 T 280 65"
+                              stroke="#F7D774"
+                              strokeWidth="3"
+                              fill="none"
+                              className="drop-shadow-sm"
+                            />
+                            <path
+                              d="M 20 90 Q 80 75 120 80 T 200 65 T 280 75"
+                              stroke="#2E5E4E"
+                              strokeWidth="3"
+                              fill="none"
+                              className="drop-shadow-sm"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex justify-between text-xs text-brand-charcoal/70">
+                          <span>Oct</span>
+                          <span>Nov</span>
+                          <span>Dec</span>
+                          <span>Jan</span>
+                          <span>Feb</span>
+                          <span>Mar</span>
+                          <span>Apr</span>
+                          <span>May</span>
+                        </div>
+                        <div className="flex items-center space-x-4 text-xs">
+                          <div className="flex items-center space-x-1">
+                            <div className="w-3 h-3 bg-brand-yellow rounded-sm"></div>
+                            <span># of Deals</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-3 h-3 bg-brand-green rounded-sm"></div>
+                            <span>Median Deal Size ($)</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-3 h-3 bg-brand-green rounded-sm"></div>
-                        <span>Median Deal Size ($)</span>
-                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </LoadingTransition>
+            </SectionErrorBoundary>
 
             {/* Quick Counts */}
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">QUICK COUNTS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {/* Top Sectors */}
-                  {metrics?.topSectors?.slice(0, 6).map((sector, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-700">{sector.sector}</span>
-                          <span className="text-sm font-medium">{sector.dealCount}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>Deals</span>
-                          <span>${(sector.totalFunding / 1000000).toFixed(1)}M</span>
-                        </div>
-                      </div>
+            <SectionErrorBoundary
+              sectionName="Quick Counts"
+              fallback={(error, retry) => (
+                <MetricsErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[metrics?.totalDeals, metrics?.topSectors?.length].filter(key => key !== undefined)}
+            >
+              <LoadingTransition
+                isLoading={!sectionsLoaded.metrics}
+                loadingComponent={<QuickCountsLoading />}
+                delay={200}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.1s' }}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">QUICK COUNTS</CardTitle>
+                      <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
-                  )) || 
-                  // Fallback if no sector data
-                  Array.from({ length: 6 }, (_, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-700">Loading...</span>
-                          <span className="text-sm font-medium">-</span>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {/* Display error state if no sectors but metrics exist */}
+                      {sectionsLoaded.metrics && (!metrics?.topSectors || metrics.topSectors.length === 0) && (
+                        <SectionErrorDisplay
+                          error={{
+                            type: 'NOT_FOUND_ERROR' as any,
+                            message: 'No sector data available',
+                            retryable: true,
+                            timestamp: new Date(),
+                            userMessage: 'No sector breakdown data is currently available',
+                            technicalDetails: 'Sector metrics calculation failed'
+                          }}
+                          retry={refetch}
+                          sectionName="Sector Data"
+                          className="py-4"
+                        />
+                      )}
+                      
+                      {/* Top Sectors */}
+                      {metrics?.topSectors?.slice(0, 6).map((sector, index) => (
+                        <div key={index} className="flex justify-between items-center animate-loading-fade" style={{ animationDelay: `${index * 0.1}s` }}>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-gray-700">{sector.sector}</span>
+                              <span className="text-sm font-medium">{sector.dealCount}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500 mt-1">
+                              <span>Deals</span>
+                              <span>${(sector.totalFunding / 1000000).toFixed(1)}M</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>-</span>
-                          <span>-</span>
+                      )) || 
+                      // Fallback if no sector data and still loading
+                      (!sectionsLoaded.metrics && Array.from({ length: 6 }, (_, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-gray-700">Loading...</span>
+                              <span className="text-sm font-medium">-</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-500 mt-1">
+                              <span>-</span>
+                              <span>-</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )))}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </LoadingTransition>
+            </SectionErrorBoundary>
 
             {/* Deals by Regions - World Map */}
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">DEALS BY REGIONS</CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <select className="text-xs border border-gray-300 rounded px-2 py-1">
-                      <option>World (21,093)</option>
-                    </select>
-                    <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 bg-gradient-to-br from-brand-blue/30 via-brand-yellow/20 to-brand-green/30 rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner">
-                  <div className="absolute inset-0 bg-gradient-to-t from-brand-green/10 to-brand-blue/10"></div>
-                  <div className="text-center">
-                    <Globe className="w-16 h-16 text-brand-green mx-auto mb-2" />
-                    <p className="text-sm text-brand-charcoal/70">World Map Visualization</p>
-                    <div className="flex items-center justify-center space-x-4 mt-4 text-xs">
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                        <span>0</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-brand-green rounded-full"></div>
-                        <span>1-5</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-brand-yellow rounded-full"></div>
-                        <span>6-20</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                        <span>&gt;20</span>
+            <SectionErrorBoundary
+              sectionName="Regional Data"
+              fallback={(error, retry) => (
+                <WorldMapErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[metrics?.totalDeals].filter(key => key !== undefined)}
+            >
+              <LoadingTransition
+                isLoading={!sectionsLoaded.charts}
+                loadingComponent={<WorldMapLoading />}
+                delay={300}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.2s' }}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">DEALS BY REGIONS</CardTitle>
+                      <div className="flex items-center space-x-2">
+                        <select className="text-xs border border-gray-300 rounded px-2 py-1">
+                          <option>World ({metrics?.totalDeals || 0})</option>
+                        </select>
+                        <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                       </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48 bg-gradient-to-br from-brand-blue/30 via-brand-yellow/20 to-brand-green/30 rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner">
+                      <div className="absolute inset-0 bg-gradient-to-t from-brand-green/10 to-brand-blue/10"></div>
+                      <div className="text-center">
+                        <Globe className="w-16 h-16 text-brand-green mx-auto mb-2" />
+                        <p className="text-sm text-brand-charcoal/70">World Map Visualization</p>
+                        <div className="flex items-center justify-center space-x-4 mt-4 text-xs">
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                            <span>0</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-brand-green rounded-full"></div>
+                            <span>1-5</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-brand-yellow rounded-full"></div>
+                            <span>6-20</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                            <span>&gt;20</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </LoadingTransition>
+            </SectionErrorBoundary>
           </div>
 
           {/* Second Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent SEC Filings */}
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-xs font-medium text-gray-600 border-b pb-2">
-                    <span>Company</span>
-                    <span>Type</span>
-                    <span>Date</span>
-                  </div>
-                  {recentDeals.map((deal) => (
-                    <div key={deal.id} className="flex justify-between items-center text-sm">
-                      <span className="text-blue-600 hover:underline cursor-pointer">{deal.companyName}</span>
-                      <span className="text-gray-600">{deal.fundingStage || 'N/A'}</span>
-                      <span className="text-gray-500">{deal.formattedDate}</span>
+            {/* Recent Funding Rounds */}
+            <SectionErrorBoundary
+              sectionName="Recent Funding Rounds"
+              fallback={(error, retry) => (
+                <RecentDealsErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[recentDeals.length].filter(key => key !== undefined)}
+            >
+              <LoadingTransition
+                isLoading={!sectionsLoaded.recentDeals}
+                loadingComponent={<RecentDealsLoading />}
+                delay={400}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.3s' }}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
+                      <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
-                  ))}
-                  <Button variant="outline" size="sm" className="w-full mt-4">
-                    View All ({metrics?.totalDeals || 0})
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-xs font-medium text-gray-600 border-b pb-2">
+                        <span>Company</span>
+                        <span>Type</span>
+                        <span>Date</span>
+                      </div>
+                      {recentDeals.length > 0 ? recentDeals.map((deal, index) => (
+                        <div key={deal.id} className="flex justify-between items-center text-sm animate-loading-fade" style={{ animationDelay: `${index * 0.1}s` }}>
+                          <span className="text-blue-600 hover:underline cursor-pointer">{deal.companyName}</span>
+                          <span className="text-gray-600">{deal.fundingStage || 'N/A'}</span>
+                          <span className="text-gray-500">{deal.formattedDate}</span>
+                        </div>
+                      )) : (
+                        <div className="text-center py-4">
+                          <p className="text-gray-500 text-sm">No recent deals available</p>
+                        </div>
+                      )}
+                      <Button variant="outline" size="sm" className="w-full mt-4">
+                        View All ({metrics?.totalDeals || 0})
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </LoadingTransition>
+            </SectionErrorBoundary>
 
             {/* Top Company Signals */}
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">TOP COMPANY SIGNALS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentDeals.length > 0 ? (
-                    <div>
-                      <h3 className="text-lg font-semibold text-blue-600 mb-1">{recentDeals[0].companyName}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{recentDeals[0].climateSector} • {recentDeals[0].country}</p>
-                      
-                      <div className="grid grid-cols-3 gap-4 text-xs">
-                        <div>
-                          <p className="text-gray-500">Funding Stage</p>
-                          <p className="font-medium">{recentDeals[0].fundingStage || 'N/A'}</p>
+            <SectionErrorBoundary
+              sectionName="Company Signals"
+              fallback={(error, retry) => (
+                <CompanySignalsErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[recentDeals.length, metrics?.growthRate].filter(key => key !== undefined)}
+            >
+            <LoadingTransition
+              isLoading={!sectionsLoaded.recentDeals}
+              loadingComponent={<CompanySignalsLoading />}
+              delay={500}
+            >
+              <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.4s' }}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">TOP COMPANY SIGNALS</CardTitle>
+                    <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentDeals.length > 0 ? (
+                      <div className="animate-loading-fade">
+                        <h3 className="text-lg font-semibold text-blue-600 mb-1">{recentDeals[0].companyName}</h3>
+                        <p className="text-sm text-gray-600 mb-2">{recentDeals[0].climateSector} • {recentDeals[0].country}</p>
+                        
+                        <div className="grid grid-cols-3 gap-4 text-xs">
+                          <div>
+                            <p className="text-gray-500">Funding Stage</p>
+                            <p className="font-medium">{recentDeals[0].fundingStage || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Date</p>
+                            <p className="font-medium">{recentDeals[0].formattedDate}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Amount</p>
+                            <p className="font-medium">{recentDeals[0].formattedAmount}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-500">Date</p>
-                          <p className="font-medium">{recentDeals[0].formattedDate}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500">Amount</p>
-                          <p className="font-medium">{recentDeals[0].formattedAmount}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 space-y-2">
-                        <div className="text-center">
-                          <span className="text-lg font-bold">{recentDeals[0].daysAgo}</span>
-                          <p className="text-xs text-gray-500">Days Ago</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No recent deals available</p>
-                    </div>
-                  )}
-                  
-                  {/* Growth Indicators */}
-                  <div className="flex space-x-4">
-                    <div className="flex-1">
-                      <div className="relative w-20 h-20 mx-auto">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                          <circle cx="50" cy="50" r="40" stroke="#f3f3f3" strokeWidth="8" fill="none" />
-                          <circle cx="50" cy="50" r="40" stroke="#F7D774" strokeWidth="8" fill="none" 
-                                  strokeDasharray={`${(metrics?.growthRate || 0) * 2.5} 245`} className="transition-all duration-300" />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
+                        
+                        <div className="mt-4 space-y-2">
                           <div className="text-center">
-                            <div className="text-sm font-bold">{metrics?.growthRate?.toFixed(1) || '0'}%</div>
-                            <div className="text-xs text-gray-500">Growth Rate</div>
+                            <span className="text-lg font-bold">{recentDeals[0].daysAgo}</span>
+                            <p className="text-xs text-gray-500">Days Ago</p>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="relative w-20 h-20 mx-auto">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                          <circle cx="50" cy="50" r="40" stroke="#f3f3f3" strokeWidth="8" fill="none" />
-                          <circle cx="50" cy="50" r="40" stroke="#2E5E4E" strokeWidth="8" fill="none" 
-                                  strokeDasharray="180 70" className="transition-all duration-300" />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-sm font-bold">
-                              ${metrics?.averageDealSize ? (metrics.averageDealSize / 1000000).toFixed(1) : '0'}M
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No recent deals available</p>
+                      </div>
+                    )}
+                    
+                    {/* Growth Indicators */}
+                    <div className="flex space-x-4">
+                      <div className="flex-1">
+                        <div className="relative w-20 h-20 mx-auto">
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" stroke="#f3f3f3" strokeWidth="8" fill="none" />
+                            <circle cx="50" cy="50" r="40" stroke="#F7D774" strokeWidth="8" fill="none" 
+                                    strokeDasharray={`${(metrics?.growthRate || 0) * 2.5} 245`} className="transition-all duration-300" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-sm font-bold">{metrics?.growthRate?.toFixed(1) || '0'}%</div>
+                              <div className="text-xs text-gray-500">Growth Rate</div>
                             </div>
-                            <div className="text-xs text-gray-500">Avg Deal</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="relative w-20 h-20 mx-auto">
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" stroke="#f3f3f3" strokeWidth="8" fill="none" />
+                            <circle cx="50" cy="50" r="40" stroke="#2E5E4E" strokeWidth="8" fill="none" 
+                                    strokeDasharray="180 70" className="transition-all duration-300" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-sm font-bold">
+                                ${metrics?.averageDealSize ? (metrics.averageDealSize / 1000000).toFixed(1) : '0'}M
+                              </div>
+                              <div className="text-xs text-gray-500">Avg Deal</div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </LoadingTransition>
+            </SectionErrorBoundary>
 
-            {/* News Curated for You */}
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE TECH NEWS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {newsItems.map((item, index) => (
-                    <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-blue-600 hover:underline cursor-pointer mb-1">
-                            {item.title}
-                          </h4>
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                            {item.description}
-                          </p>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500">
-                            <span>Moo Climate</span>
-                            <span>•</span>
-                            <span>{item.date}</span>
+            {/* Climate Tech News */}
+            <SectionErrorBoundary
+              sectionName="Climate Tech News"
+              fallback={(error, retry) => (
+                <NewsErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[newsItems.length].filter(key => key !== undefined)}
+            >
+            <LoadingTransition
+              isLoading={false} // News is static, so never loading
+              loadingComponent={<NewsLoading />}
+              delay={600}
+            >
+              <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.5s' }}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE TECH NEWS</CardTitle>
+                    <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {newsItems.map((item, index) => (
+                      <div key={index} className="border-b border-gray-100 pb-3 last:border-b-0 animate-loading-fade" style={{ animationDelay: `${0.6 + index * 0.1}s` }}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-blue-600 hover:underline cursor-pointer mb-1">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                              {item.description}
+                            </p>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                              <span>Moo Climate</span>
+                              <span>•</span>
+                              <span>{item.date}</span>
+                            </div>
                           </div>
+                          <span className="text-xs text-gray-400 ml-2">{item.date}</span>
                         </div>
-                        <span className="text-xs text-gray-400 ml-2">{item.date}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </LoadingTransition>
+            </SectionErrorBoundary>
           </div>
 
-          {/* Third Row - Fund Returns Chart */}
+          {/* Third Row - Fund Returns Chart and Market Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE FUND RETURNS</CardTitle>
-                  <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48">
-                  <div className="flex justify-between items-end h-full space-x-2">
-                    <div className="flex flex-col justify-end space-y-1">
-                      <span className="text-xs text-gray-500">60%</span>
-                      <span className="text-xs text-gray-500">40%</span>
-                      <span className="text-xs text-gray-500">20%</span>
-                      <span className="text-xs text-gray-500">0%</span>
-                      <span className="text-xs text-gray-500">-20%</span>
+            <SectionErrorBoundary
+              sectionName="Fund Returns Chart"
+              fallback={(error, retry) => (
+                <ChartErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[metrics?.totalDeals].filter(key => key !== undefined)}
+            >
+              <LoadingTransition
+                isLoading={!sectionsLoaded.charts}
+                loadingComponent={<FundReturnsLoading />}
+                delay={700}
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.6s' }}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE FUND RETURNS</CardTitle>
+                      <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
-                    <div className="flex-1 h-full relative">
-                      <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div>
-                      <svg className="w-full h-full" viewBox="0 0 300 160">
-                        <path
-                          d="M 20 140 Q 80 120 120 130 T 200 110 T 280 125"
-                          stroke="#2E5E4E"
-                          strokeWidth="2"
-                          fill="none"
-                        />
-                      </svg>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <div className="flex justify-between items-end h-full space-x-2">
+                        <div className="flex flex-col justify-end space-y-1">
+                          <span className="text-xs text-gray-500">60%</span>
+                          <span className="text-xs text-gray-500">40%</span>
+                          <span className="text-xs text-gray-500">20%</span>
+                          <span className="text-xs text-gray-500">0%</span>
+                          <span className="text-xs text-gray-500">-20%</span>
+                        </div>
+                        <div className="flex-1 h-full relative">
+                          <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-300"></div>
+                          <svg className="w-full h-full" viewBox="0 0 300 160">
+                            <path
+                              d="M 20 140 Q 80 120 120 130 T 200 110 T 280 125"
+                              stroke="#2E5E4E"
+                              strokeWidth="2"
+                              fill="none"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col justify-end space-y-1 text-xs text-gray-500">
+                          <span>10x</span>
+                          <span>8x</span>
+                          <span>6x</span>
+                          <span>4x</span>
+                          <span>2x</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col justify-end space-y-1 text-xs text-gray-500">
-                      <span>10x</span>
-                      <span>8x</span>
-                      <span>6x</span>
-                      <span>4x</span>
-                      <span>2x</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </LoadingTransition>
+            </SectionErrorBoundary>
 
-            <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-brand-charcoal">Market Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-gradient-to-br from-brand-yellow/20 to-brand-yellow/10 rounded-lg border border-brand-yellow/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalDeals || 0}</div>
-                    <div className="text-sm text-brand-charcoal/70">Total Deals</div>
-                  </div>
-                  <div className="text-center p-4 bg-gradient-to-br from-brand-green/20 to-brand-green/10 rounded-lg border border-brand-green/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">
-                      ${metrics?.totalFunding ? (metrics.totalFunding / 1000000000).toFixed(1) : '0'}B
+            <SectionErrorBoundary
+              sectionName="Market Overview"
+              fallback={(error, retry) => (
+                <MetricsErrorFallback error={error} retry={retry} />
+              )}
+              resetKeys={[metrics?.totalDeals, metrics?.totalFunding, metrics?.totalCompanies, metrics?.totalInvestors].filter(key => key !== undefined)}
+            >
+
+            <LoadingTransition
+              isLoading={!sectionsLoaded.metrics}
+              loadingComponent={
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
+                  <CardHeader className="pb-2">
+                    <Skeleton className="h-4 w-24" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <MetricsCardLoading key={i} />
+                      ))}
                     </div>
-                    <div className="text-sm text-brand-charcoal/70">Total Funding</div>
+                  </CardContent>
+                </Card>
+              }
+              delay={800}
+            >
+              <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.7s' }}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-brand-charcoal">Market Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-gradient-to-br from-brand-yellow/20 to-brand-yellow/10 rounded-lg border border-brand-yellow/20 shadow-sm animate-loading-fade" style={{ animationDelay: '0.8s' }}>
+                      <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalDeals || 0}</div>
+                      <div className="text-sm text-brand-charcoal/70">Total Deals</div>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-brand-green/20 to-brand-green/10 rounded-lg border border-brand-green/20 shadow-sm animate-loading-fade" style={{ animationDelay: '0.9s' }}>
+                      <div className="text-2xl font-bold text-brand-charcoal">
+                        ${metrics?.totalFunding ? (metrics.totalFunding / 1000000000).toFixed(1) : '0'}B
+                      </div>
+                      <div className="text-sm text-brand-charcoal/70">Total Funding</div>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-brand-blue/20 to-brand-blue/10 rounded-lg border border-brand-blue/20 shadow-sm animate-loading-fade" style={{ animationDelay: '1.0s' }}>
+                      <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalCompanies || 0}</div>
+                      <div className="text-sm text-brand-charcoal/70">Companies</div>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-gray-200/50 to-gray-100/30 rounded-lg border border-gray-200/30 shadow-sm animate-loading-fade" style={{ animationDelay: '1.1s' }}>
+                      <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalInvestors || 0}</div>
+                      <div className="text-sm text-brand-charcoal/70">Investors</div>
+                    </div>
                   </div>
-                  <div className="text-center p-4 bg-gradient-to-br from-brand-blue/20 to-brand-blue/10 rounded-lg border border-brand-blue/20 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalCompanies || 0}</div>
-                    <div className="text-sm text-brand-charcoal/70">Companies</div>
-                  </div>
-                  <div className="text-center p-4 bg-gradient-to-br from-gray-200/50 to-gray-100/30 rounded-lg border border-gray-200/30 shadow-sm">
-                    <div className="text-2xl font-bold text-brand-charcoal">{metrics?.totalInvestors || 0}</div>
-                    <div className="text-sm text-brand-charcoal/70">Investors</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </LoadingTransition>
+            </SectionErrorBoundary>
           </div>
         </main>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

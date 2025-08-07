@@ -22,59 +22,69 @@ export interface UseDashboardDataReturn {
 export function useDashboardData(options: UseDashboardDataOptions = {}): UseDashboardDataReturn {
   console.log('🎯 useDashboardData: Hook starting with options:', options);
   
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // State
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recentDeals, setRecentDeals] = useState<FundingDeal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isRefetching, setIsRefetching] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const hasRunRef = useRef(false);
+  const mountedRef = useRef(true);
+  
+  console.log('🎯 useDashboardData: States initialized, about to set up useEffect');
 
-  console.log('🎯 useDashboardData: States initialized, about to set up data fetch');
-
-  // Force immediate execution without any mount checks
-  if (!hasRunRef.current) {
-    hasRunRef.current = true;
-    console.log('🚀 IMMEDIATE EXECUTION: Starting data fetch right now!');
+  // Very simple data fetch on mount
+  useEffect(() => {
+    console.log('🚀 USEEFFECT IS RUNNING!!!! FINALLY!');
     
-    // Use setTimeout to avoid state updates during render
-    setTimeout(async () => {
+    const fetchData = async () => {
+      console.log('🚀 useDashboardData: Starting data fetch...');
+      
       try {
-        console.log('🚀 IMMEDIATE: Calling APIs...');
         setLoading(true);
         setError(null);
         
+        console.log('🚀 useDashboardData: Calling APIs...');
         const [metricsResponse, dealsResponse] = await Promise.all([
           FundingService.getDashboardMetrics(),
           FundingService.getRecentDeals(options.recentDealsLimit || 5)
         ]);
         
-        console.log('🚀 IMMEDIATE: API responses received:', {
+        console.log('🚀 useDashboardData: API responses received:', {
           metrics: metricsResponse,
           deals: dealsResponse
         });
         
-        // Force state update without any checks
-        console.log('🚀 IMMEDIATE: Forcing state update now...');
-        setMetrics(metricsResponse.data);
-        setRecentDeals(dealsResponse.data || []);
-        setLastUpdated(new Date());
-        setLoading(false);
-        console.log('🚀 IMMEDIATE: State updated successfully!', {
-          hasMetrics: !!metricsResponse.data,
-          dealsCount: dealsResponse.data?.length || 0,
-          loadingState: false
-        });
-        
+        if (mountedRef.current) {
+          setMetrics(metricsResponse.data);
+          setRecentDeals(dealsResponse.data || []);
+          setLastUpdated(new Date());
+          console.log('🚀 useDashboardData: State updated successfully!');
+        }
       } catch (err) {
-        console.error('🚀 IMMEDIATE: Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        setLoading(false);
+        console.error('🚀 useDashboardData: Error fetching data:', err);
+        if (mountedRef.current) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+          setIsRefetching(false);
+        }
       }
-    }, 10); // Even shorter delay
-  }
+    };
+    
+    fetchData();
+  }, []); // Run once on mount
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const refetch = useCallback(async () => {
     console.log('🚀 useDashboardData: Manual refetch requested');
@@ -83,21 +93,32 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
     try {
       setError(null);
       
-      console.log('🚀 useDashboardData: Calling APIs for refetch...');
+      console.log('🚀 useDashboardData: Refetching APIs...');
       const [metricsResponse, dealsResponse] = await Promise.all([
         FundingService.getDashboardMetrics(),
         FundingService.getRecentDeals(options.recentDealsLimit || 5)
       ]);
       
-      setMetrics(metricsResponse.data);
-      setRecentDeals(dealsResponse.data || []);
-      setLastUpdated(new Date());
-      console.log('🚀 useDashboardData: Refetch completed');
+      console.log('🚀 useDashboardData: Refetch responses received:', {
+        metrics: metricsResponse,
+        deals: dealsResponse
+      });
+      
+      if (mountedRef.current) {
+        setMetrics(metricsResponse.data);
+        setRecentDeals(dealsResponse.data || []);
+        setLastUpdated(new Date());
+        console.log('🚀 useDashboardData: Refetch completed successfully!');
+      }
     } catch (err) {
       console.error('🚀 useDashboardData: Refetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to refetch data');
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to refetch data');
+      }
     } finally {
-      setIsRefetching(false);
+      if (mountedRef.current) {
+        setIsRefetching(false);
+      }
     }
   }, [options.recentDealsLimit]);
 

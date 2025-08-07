@@ -20,12 +20,12 @@ export class FundingService {
     console.log('FundingService.getDashboardMetrics: Starting...');
     
     try {
-      // Fetch all deals for metric calculations
+      // Fetch all deals for metric calculations (temporarily removing status filter)
       console.log('FundingService.getDashboardMetrics: Querying Supabase...');
       const { data: deals, error } = await supabase
         .from('deals')
-        .select('*')
-        .eq('status', 'PROCESSED_AI');
+        .select('*');
+        // .eq('status', 'PROCESSED_AI');  // Temporarily commented out to check if any data exists
 
       console.log('FundingService.getDashboardMetrics: Supabase response:', { 
         dealsCount: deals?.length, 
@@ -100,7 +100,7 @@ export class FundingService {
       const { data: deals, error } = await supabase
         .from('deals')
         .select('*')
-        .eq('status', 'PROCESSED_AI')
+        // .eq('status', 'PROCESSED_AI')  // Temporarily commented out to check if any data exists
         .order('date_announced', { ascending: false })
         .limit(limit);
 

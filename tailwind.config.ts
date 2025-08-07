@@ -96,6 +96,18 @@ const config: Config = {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "loading-fade": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "loading-pulse": {
+          "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.02)" },
+        },
+        "progressive-load": {
+          "0%": { opacity: "0", transform: "translateX(-20px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -104,6 +116,9 @@ const config: Config = {
         "float": "float 3s ease-in-out infinite",
         "drift": "drift 6s ease-in-out infinite",
         "shimmer": "shimmer 2s infinite linear",
+        "loading-fade": "loading-fade 0.5s ease-out forwards",
+        "loading-pulse": "loading-pulse 2s ease-in-out infinite",
+        "progressive-load": "progressive-load 0.6s ease-out forwards",
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
