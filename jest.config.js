@@ -14,7 +14,7 @@ const customJestConfig = {
   },
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   transformIgnorePatterns: [
-    'node_modules/(?!(isows|@supabase|@testing-library)/)',
+    'node_modules/(?!(isows|@supabase|@testing-library|@tanstack)/)',
   ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',

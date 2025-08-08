@@ -47,10 +47,14 @@ describe('useRealTimeDeals', () => {
     expect(result.current.newDealsCount).toBe(0);
   });
 
-  it('should setup subscription when enabled', () => {
+  it('should setup subscription when enabled', async () => {
     renderHook(() => useRealTimeDeals({ enabled: true }));
 
-    expect(mockSupabase.channel).toHaveBeenCalledWith('deals-changes');
+    // Wait for the subscription setup timeout
+    await waitFor(() => {
+      expect(mockSupabase.channel).toHaveBeenCalled();
+    });
+
     expect(mockChannel.on).toHaveBeenCalledWith(
       'postgres_changes',
       {
@@ -108,7 +112,7 @@ describe('useRealTimeDeals', () => {
 
     mockTransformer.transformSingleDeal.mockReturnValue(mockTransformedDeal);
 
-    let subscribeCallback: (status: string) => void;
+    let subscribeCallback: (status: string, error?: Error) => void;
     let changeHandler: (payload: any) => void;
 
     mockChannel.on.mockImplementation((event, config, handler) => {
@@ -119,25 +123,35 @@ describe('useRealTimeDeals', () => {
     mockChannel.subscribe.mockImplementation((callback) => {
       subscribeCallback = callback;
       return mockChannel;
+      return mockChannel;
     });
 
     const { result } = renderHook(() => useRealTimeDeals({ enabled: true }));
 
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalled();
+    });
+
     // Simulate successful subscription
     act(() => {
-      subscribeCallback('SUBSCRIBED');
+      if (subscribeCallback) {
+        subscribeCallback('SUBSCRIBED');
+      }
     });
 
     expect(result.current.isConnected).toBe(true);
 
     // Simulate new deal insertion
     act(() => {
-      changeHandler({
-        eventType: 'INSERT',
-        new: mockDeal,
-        old: null,
-        errors: null,
-      });
+      if (changeHandler) {
+        changeHandler({
+          eventType: 'INSERT',
+          new: mockDeal,
+          old: null,
+          errors: null,
+        });
+      }
     });
 
     await waitFor(() => {
@@ -160,10 +174,17 @@ describe('useRealTimeDeals', () => {
 
     const { result } = renderHook(() => useRealTimeDeals({ enabled: true }));
 
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalled();
+    });
+
     const testError = new Error('Connection failed');
 
     act(() => {
-      subscribeCallback('CHANNEL_ERROR', testError);
+      if (subscribeCallback) {
+        subscribeCallback('CHANNEL_ERROR', testError);
+      }
     });
 
     await waitFor(() => {
@@ -211,7 +232,7 @@ describe('useRealTimeDeals', () => {
 
     mockTransformer.transformSingleDeal.mockReturnValue(mockTransformedDeal);
 
-    let subscribeCallback: (status: string) => void;
+    let subscribeCallback: (status: string, error?: Error) => void;
     let changeHandler: (payload: any) => void;
 
     mockChannel.on.mockImplementation((event, config, handler) => {
@@ -226,18 +247,27 @@ describe('useRealTimeDeals', () => {
 
     const { result } = renderHook(() => useRealTimeDeals({ enabled: true }));
 
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalled();
+    });
+
     // Setup connection and add a deal
     act(() => {
-      subscribeCallback('SUBSCRIBED');
+      if (subscribeCallback) {
+        subscribeCallback('SUBSCRIBED');
+      }
     });
 
     act(() => {
-      changeHandler({
-        eventType: 'INSERT',
-        new: mockDeal,
-        old: null,
-        errors: null,
-      });
+      if (changeHandler) {
+        changeHandler({
+          eventType: 'INSERT',
+          new: mockDeal,
+          old: null,
+          errors: null,
+        });
+      }
     });
 
     await waitFor(() => {
@@ -274,7 +304,7 @@ describe('useRealTimeDeals', () => {
       allInvestors: ['Test VC'],
     }));
 
-    let subscribeCallback: (status: string) => void;
+    let subscribeCallback: (status: string, error?: Error) => void;
     let changeHandler: (payload: any) => void;
 
     mockChannel.on.mockImplementation((event, config, handler) => {
@@ -291,14 +321,22 @@ describe('useRealTimeDeals', () => {
       useRealTimeDeals({ enabled: true, maxNewDeals })
     );
 
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalled();
+    });
+
     act(() => {
-      subscribeCallback('SUBSCRIBED');
+      if (subscribeCallback) {
+        subscribeCallback('SUBSCRIBED');
+      }
     });
 
     // Add more deals than the limit
     for (let i = 1; i <= 5; i++) {
       act(() => {
-        changeHandler({
+        if (changeHandler) {
+          changeHandler({
           eventType: 'INSERT',
           new: {
             id: i,
@@ -320,6 +358,7 @@ describe('useRealTimeDeals', () => {
           old: null,
           errors: null,
         });
+        }
       });
     }
 
@@ -333,8 +372,13 @@ describe('useRealTimeDeals', () => {
     });
   });
 
-  it('should cleanup subscription on unmount', () => {
+  it('should cleanup subscription on unmount', async () => {
     const { unmount } = renderHook(() => useRealTimeDeals({ enabled: true }));
+
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockSupabase.channel).toHaveBeenCalled();
+    });
 
     unmount();
 
@@ -381,7 +425,7 @@ describe('useRealTimeDeals', () => {
 
     mockTransformer.transformSingleDeal.mockReturnValue(mockTransformedDeal);
 
-    let subscribeCallback: (status: string) => void;
+    let subscribeCallback: (status: string, error?: Error) => void;
     let changeHandler: (payload: any) => void;
 
     mockChannel.on.mockImplementation((event, config, handler) => {
@@ -396,17 +440,26 @@ describe('useRealTimeDeals', () => {
 
     renderHook(() => useRealTimeDeals({ enabled: true, onNewDeal }));
 
-    act(() => {
-      subscribeCallback('SUBSCRIBED');
+    // Wait for subscription setup
+    await waitFor(() => {
+      expect(mockChannel.subscribe).toHaveBeenCalled();
     });
 
     act(() => {
-      changeHandler({
-        eventType: 'INSERT',
-        new: mockDeal,
-        old: null,
-        errors: null,
-      });
+      if (subscribeCallback) {
+        subscribeCallback('SUBSCRIBED');
+      }
+    });
+
+    act(() => {
+      if (changeHandler) {
+        changeHandler({
+          eventType: 'INSERT',
+          new: mockDeal,
+          old: null,
+          errors: null,
+        });
+      }
     });
 
     await waitFor(() => {

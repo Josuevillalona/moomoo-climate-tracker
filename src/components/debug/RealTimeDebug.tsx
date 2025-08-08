@@ -47,7 +47,7 @@ export default function RealTimeDebug() {
   // Test just real-time
   const testRealTimeOnly = async () => {
     addDebugInfo('📡 Testing real-time subscription...');
-    const result = await testSupabaseRealTime();
+    const result = await testSupabaseRealTime() as { success: boolean; error?: string };
     
     if (result.success) {
       addDebugInfo('✅ Real-time test successful');
@@ -67,7 +67,7 @@ export default function RealTimeDebug() {
   } = useRealTimeDeals({
     enabled: testConnection,
     onNewDeal: (deal) => {
-      addDebugInfo(`🆕 New deal received: ${deal.company_name} - ${deal.formattedAmount}`);
+      addDebugInfo(`🆕 New deal received: ${(deal as any).company_name} - ${(deal as any).formattedAmount}`);
     },
     onConnectionChange: (connected) => {
       addDebugInfo(`📡 Connection status: ${connected ? 'CONNECTED' : 'DISCONNECTED'}`);
@@ -161,7 +161,7 @@ export default function RealTimeDebug() {
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {newDeals.slice(0, 5).map((deal) => (
                 <div key={deal.id} className="text-sm bg-white p-2 rounded">
-                  <span className="font-medium">{deal.company_name}</span> - {deal.formattedAmount}
+                  <span className="font-medium">{(deal as any).company_name}</span> - {(deal as any).formattedAmount}
                 </div>
               ))}
             </div>

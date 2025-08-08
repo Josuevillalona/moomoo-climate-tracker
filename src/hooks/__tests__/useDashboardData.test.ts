@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useDashboardData } from '../useDashboardData';
 
 // Mock the FundingService module
@@ -137,8 +137,10 @@ describe('useDashboardData', () => {
     // Clear mocks to track refetch calls
     jest.clearAllMocks();
 
-    // Call refetch
-    await result.current.refetch();
+    // Call refetch wrapped in act
+    await act(async () => {
+      await result.current.refetch();
+    });
 
     expect(mockFundingService.getDashboardMetrics).toHaveBeenCalledTimes(1);
     expect(mockFundingService.getRecentDeals).toHaveBeenCalledTimes(1);
@@ -180,8 +182,11 @@ describe('useDashboardData', () => {
       }), 100))
     );
 
-    // Start refetch
-    const refetchPromise = result.current.refetch();
+    // Start refetch wrapped in act
+    let refetchPromise: Promise<void>;
+    await act(async () => {
+      refetchPromise = result.current.refetch();
+    });
 
     // Should show refetching state
     await waitFor(() => {
@@ -189,7 +194,9 @@ describe('useDashboardData', () => {
     });
 
     // Wait for refetch to complete
-    await refetchPromise;
+    await act(async () => {
+      await refetchPromise!;
+    });
 
     await waitFor(() => {
       expect(result.current.isRefetching).toBe(false);
@@ -247,8 +254,10 @@ describe('useDashboardData', () => {
     // Clear initial calls
     jest.clearAllMocks();
 
-    // Fast-forward time
-    jest.advanceTimersByTime(1000);
+    // Fast-forward time wrapped in act
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
 
     await waitFor(() => {
       expect(mockFundingService.getDashboardMetrics).toHaveBeenCalledTimes(1);
