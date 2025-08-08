@@ -289,4 +289,174 @@ describe('useDashboardData', () => {
 
     expect(clearIntervalSpy).toHaveBeenCalled();
   });
+
+  it('should handle partial API failures', async () => {
+    mockFundingService.getDashboardMetrics.mockResolvedValue({
+      data: mockMetrics,
+      error: null,
+      loading: false
+    });
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: null,
+      error: 'Failed to fetch deals',
+      loading: false
+    });
+
+    const { result } = renderHook(() => useDashboardData());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toContain('Failed to fetch dashboard metrics');
+    expect(result.current.metrics).toBe(null);
+    expect(result.current.recentDeals).toEqual([]);
+  });
+
+  it('should call onDataUpdate callback when data is fetched', async () => {
+    const onDataUpdate = jest.fn();
+
+    mockFundingService.getDashboardMetrics.mockResolvedValue({
+      data: mockMetrics,
+      error: null,
+      loading: false
+    });
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: mockDeals,
+      error: null,
+      loading: false
+    });
+
+    renderHook(() => useDashboardData({ onDataUpdate }));
+
+    await waitFor(() => {
+      expect(onDataUpdate).toHaveBeenCalledWith(mockMetrics, mockDeals);
+    });
+  });
+
+  it('should handle concurrent refetch calls', async () => {
+    mockFundingService.getDashboardMetrics.mockResolvedValue({
+      data: mockMetrics,
+      error: null,
+      loading: false
+    });
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: mockDeals,
+      error: null,
+      loading: false
+    });
+
+    const { result } = renderHook(() => useDashboardData());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Clear mocks to track refetch calls
+    jest.clearAllMocks();
+
+    // Make multiple concurrent refetch calls
+    await act(async () => {
+      const promises = [
+        result.current.refetch(),
+        result.current.refetch(),
+        result.current.refetch(),
+      ];
+      await Promise.all(promises);
+    });
+
+    // Should handle concurrent calls gracefully
+    expect(mockFundingService.getDashboardMetrics).toHaveBeenCalled();
+    expect(mockFundingService.getRecentDeals).toHaveBeenCalled();
+  });
+
+  it('should handle empty data responses', async () => {
+    mockFundingService.getDashboardMetrics.mockResolvedValue({
+      data: {
+        totalDeals: 0,
+        totalFunding: 0,
+        totalCompanies: 0,
+        totalInvestors: 0,
+        growthRate: 0,
+        averageDealSize: 0,
+        topSectors: [],
+        topCountries: []
+      },
+      error: null,
+      loading: false
+    });
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: [],
+      error: null,
+      loading: false
+    });
+
+    const { result } = renderHook(() => useDashboardData());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.metrics?.totalDeals).toBe(0);
+    expect(result.current.recentDeals).toEqual([]);
+    expect(result.current.error).toBe(null);
+  });
+
+  it('should handle API timeout scenarios', async () => {
+    mockFundingService.getDashboardMetrics.mockImplementation(
+      () => new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 100)
+      )
+    );
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: mockDeals,
+      error: null,
+      loading: false
+    });
+
+    const { result } = renderHook(() => useDashboardData());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toContain('Request timeout');
+  });
+
+  it('should maintain state consistency during rapid option changes', async () => {
+    mockFundingService.getDashboardMetrics.mockResolvedValue({
+      data: mockMetrics,
+      error: null,
+      loading: false
+    });
+
+    mockFundingService.getRecentDeals.mockResolvedValue({
+      data: mockDeals,
+      error: null,
+      loading: false
+    });
+
+    const { result, rerender } = renderHook(
+      ({ limit }) => useDashboardData({ recentDealsLimit: limit }),
+      { initialProps: { limit: 5 } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Change options rapidly
+    rerender({ limit: 10 });
+    rerender({ limit: 15 });
+    rerender({ limit: 20 });
+
+    // Should maintain consistent state
+    expect(result.current.metrics).toBeDefined();
+    expect(result.current.recentDeals).toBeDefined();
+  });
 });

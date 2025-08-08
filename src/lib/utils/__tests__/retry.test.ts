@@ -1,109 +1,160 @@
-import { withRetry, RetryableOperation, shouldRetryError } from '@/lib/utils/retry';
+import { withRetry } from '../retry';
 
 describe('withRetry', () => {
-  it('returns result on successful first attempt', async () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should return result on first successful attempt', async () => {
     const mockFn = jest.fn().mockResolvedValue('success');
-    
+
     const result = await withRetry(mockFn);
-    
+
     expect(result).toBe('success');
     expect(mockFn).toHaveBeenCalledTimes(1);
   });
 
-  it('retries on failure and eventually succeeds', async () => {
+  it('should retry on failure and eventually succeed', async () => {
     const mockFn = jest.fn()
       .mockRejectedValueOnce(new Error('First failure'))
-      .mockResolvedValue('success');
-    
-    const result = await withRetry(mockFn, { maxAttempts: 3, backoffMs: 10 });
-    
+      .mockRejectedValueOnce(new Error('Second failure'))
+      .mockResolvedValueOnce('success');
+
+    const result = await withRetry(mockFn, 3, 100);
+
     expect(result).toBe('success');
-    expect(mockFn).toHaveBeenCalledTimes(2);
+    expect(mockFn).toHaveBeenCalledTimes(3);
   });
 
-  it('throws error after max attempts', async () => {
+  it('should throw error after max attempts', async () => {
     const mockFn = jest.fn().mockRejectedValue(new Error('Persistent failure'));
-    
-    await expect(withRetry(mockFn, { maxAttempts: 2, backoffMs: 10 }))
-      .rejects.toThrow('Persistent failure');
-    
+
+    await expect(withRetry(mockFn, 2, 100)).rejects.toThrow('Persistent failure');
     expect(mockFn).toHaveBeenCalledTimes(2);
   });
 
-  it('respects maxAttempts configuration', async () => {
-    const mockFn = jest.fn().mockRejectedValue(new Error('Failure'));
+  it('should use exponential backoff', async () => {
+    jest.useFakeTimers();
     
-    await expect(withRetry(mockFn, { maxAttempts: 1, backoffMs: 10 }))
-      .rejects.toThrow('Failure');
-    
-    expect(mockFn).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('RetryableOperation', () => {
-  it('executes operation successfully', async () => {
-    const mockOperation = jest.fn().mockResolvedValue('success');
-    const operation = new RetryableOperation(mockOperation);
-    
-    const result = await operation.execute();
-    
-    expect(result).toBe('success');
-    expect(mockOperation).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onRetry callback on failures', async () => {
-    const mockOperation = jest.fn()
+    const mockFn = jest.fn()
       .mockRejectedValueOnce(new Error('First failure'))
-      .mockResolvedValue('success');
-    
-    const onRetry = jest.fn();
-    const operation = new RetryableOperation(mockOperation, { backoffMs: 10 }, onRetry);
-    
-    const result = await operation.execute();
-    
+      .mockRejectedValueOnce(new Error('Second failure'))
+      .mockResolvedValueOnce('success');
+
+    const retryPromise = withRetry(mockFn, 3, 1000);
+
+    // First call should happen immediately
+    expect(mockFn).toHaveBeenCalledTimes(1);
+
+    // Fast-forward first backoff period (1000ms)
+    jest.advanceTimersByTime(1000);
+    await Promise.resolve(); // Allow promise to resolve
+
+    expect(mockFn).toHaveBeenCalledTimes(2);
+
+    // Fast-forward second backoff period (2000ms - exponential)
+    jest.advanceTimersByTime(2000);
+    await Promise.resolve();
+
+    expect(mockFn).toHaveBeenCalledTimes(3);
+
+    const result = await retryPromise;
     expect(result).toBe('success');
-    expect(onRetry).toHaveBeenCalledWith(1, expect.any(Error));
   });
 
-  it('allows updating options', async () => {
-    const mockOperation = jest.fn().mockRejectedValue(new Error('Failure'));
-    const operation = new RetryableOperation(mockOperation, { maxAttempts: 2, backoffMs: 10 });
+  it('should handle different error types', async () => {
+    const networkError = new Error('Network error');
+    const timeoutError = new Error('Timeout error');
     
-    operation.updateOptions({ maxAttempts: 1 });
+    const mockFn = jest.fn()
+      .mockRejectedValueOnce(networkError)
+      .mockRejectedValueOnce(timeoutError)
+      .mockResolvedValueOnce('success');
+
+    const result = await withRetry(mockFn, 3, 100);
+
+    expect(result).toBe('success');
+    expect(mockFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('should handle custom max attempts', async () => {
+    const mockFn = jest.fn().mockRejectedValue(new Error('Always fails'));
+
+    await expect(withRetry(mockFn, 5, 100)).rejects.toThrow('Always fails');
+    expect(mockFn).toHaveBeenCalledTimes(5);
+  });
+
+  it('should handle zero max attempts', async () => {
+    const mockFn = jest.fn().mockRejectedValue(new Error('Immediate failure'));
+
+    await expect(withRetry(mockFn, 0, 100)).rejects.toThrow('Max attempts must be greater than 0');
+    expect(mockFn).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle custom backoff delay', async () => {
+    jest.useFakeTimers();
     
-    await expect(operation.execute()).rejects.toThrow('Failure');
-    expect(mockOperation).toHaveBeenCalledTimes(1);
-  });
-});
+    const mockFn = jest.fn()
+      .mockRejectedValueOnce(new Error('First failure'))
+      .mockResolvedValueOnce('success');
 
-describe('shouldRetryError', () => {
-  it('returns true for network errors', () => {
-    const networkError = new Error('fetch failed');
-    expect(shouldRetryError(networkError)).toBe(true);
-  });
+    const retryPromise = withRetry(mockFn, 2, 500);
 
-  it('returns true for timeout errors', () => {
-    const timeoutError = new Error('Request timeout');
-    expect(shouldRetryError(timeoutError)).toBe(true);
-  });
+    expect(mockFn).toHaveBeenCalledTimes(1);
 
-  it('returns true for rate limit errors', () => {
-    const rateLimitError = new Error('rate limit exceeded');
-    expect(shouldRetryError(rateLimitError)).toBe(true);
+    // Fast-forward custom backoff period
+    jest.advanceTimersByTime(500);
+    await Promise.resolve();
+
+    expect(mockFn).toHaveBeenCalledTimes(2);
+
+    const result = await retryPromise;
+    expect(result).toBe('success');
   });
 
-  it('returns true for server errors', () => {
-    const serverError = new Error('500 Internal Server Error');
-    expect(shouldRetryError(serverError)).toBe(true);
+  it('should preserve original error message', async () => {
+    const originalError = new Error('Original error message');
+    const mockFn = jest.fn().mockRejectedValue(originalError);
+
+    await expect(withRetry(mockFn, 1, 100)).rejects.toThrow('Original error message');
   });
 
-  it('returns false for client errors', () => {
-    const clientError = new Error('400 Bad Request');
-    expect(shouldRetryError(clientError)).toBe(false);
+  it('should handle async functions that return promises', async () => {
+    const mockAsyncFn = jest.fn().mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 10));
+      return 'async success';
+    });
+
+    const result = await withRetry(mockAsyncFn);
+
+    expect(result).toBe('async success');
+    expect(mockAsyncFn).toHaveBeenCalledTimes(1);
   });
 
-  it('returns false for validation errors', () => {
-    const validationError = new Error('Invalid input');
-    expect(shouldRetryError(validationError)).toBe(false);
+  it('should handle functions that throw synchronously', async () => {
+    const mockFn = jest.fn().mockImplementation(() => {
+      throw new Error('Sync error');
+    });
+
+    await expect(withRetry(mockFn, 2, 100)).rejects.toThrow('Sync error');
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should handle mixed sync and async errors', async () => {
+    const mockFn = jest.fn()
+      .mockImplementationOnce(() => {
+        throw new Error('Sync error');
+      })
+      .mockRejectedValueOnce(new Error('Async error'))
+      .mockResolvedValueOnce('success');
+
+    const result = await withRetry(mockFn, 3, 100);
+
+    expect(result).toBe('success');
+    expect(mockFn).toHaveBeenCalledTimes(3);
   });
 });

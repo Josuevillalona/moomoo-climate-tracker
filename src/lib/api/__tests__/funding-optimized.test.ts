@@ -1,6 +1,6 @@
 import { FundingService } from "../funding";
 import { supabase } from "../../supabase";
-import { performanceMonitor } from "../../utils/performance";
+import { ApiException, ApiErrorType, DatabaseDeal, DealFilters } from "../../../types/api";
 import { it } from "node:test";
 import { describe } from "node:test";
 import { it } from "node:test";
@@ -39,9 +39,9 @@ jest.mock("../../supabase", () => ({
 
 // Mock performance monitor
 jest.mock("../../utils/performance", () => ({
-  measureQuery: jest.fn((name, fn, metadata) => fn()),
+  measureQuery: jest.fn((name: string, fn: () => any, metadata?: any) => fn()),
   performanceMonitor: {
-    measureAsync: jest.fn((fn, options) => fn()),
+    measureAsync: jest.fn((fn: () => any, options?: any) => fn()),
     getStats: jest.fn(),
     getRecentMetrics: jest.fn(() => []),
   },

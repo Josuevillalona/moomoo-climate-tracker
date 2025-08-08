@@ -396,6 +396,153 @@ export class FundingService {
   }
 
   /**
+   * Fetch deals with cursor-based pagination for optimal performance with large datasets
+   */
+  static async getDealsWithCursor(filters: DealFilters & { cursor?: { id: number; date: string } }): Promise<ApiResponse<{
+    data: FundingDeal[];
+    hasMore: boolean;
+    nextCursor: { id: number; date: string } | null;
+  }>> {
+    try {
+      console.log('FundingService.getDealsWithCursor: Starting cursor-based query with filters:', filters);
+      
+      // Optimize pagination limits
+      const limit = Math.min(filters.limit || 20, 100);
+      
+      // Build optimized query with selective field selection
+      let query = supabase
+        .from('deals')
+        .select(`
+          id,
+          company_name,
+          funding_stage,
+          amount_raised,
+          date_announced,
+          lead_investors,
+          other_investors,
+          climate_sub_sector,
+          geography_country,
+          status,
+          created_at
+        `);
+
+      // Apply cursor-based pagination for consistent results
+      if (filters.cursor) {
+        // Use composite cursor (date + id) for stable pagination
+        query = query
+          .or(`date_announced.lt.${filters.cursor.date},and(date_announced.eq.${filters.cursor.date},id.lt.${filters.cursor.id})`);
+      }
+
+      // Apply filters in optimal order (most selective first)
+      
+      // Date range filter first (uses date index)
+      if (filters.dateRange) {
+        query = query
+          .gte('date_announced', filters.dateRange.start)
+          .lte('date_announced', filters.dateRange.end);
+      }
+
+      // Status filter (uses composite index)
+      if (filters.status && filters.status.length > 0) {
+        query = query.in('status', filters.status);
+      }
+
+      // Amount range filter (uses amount index)
+      if (filters.amountRange) {
+        query = query
+          .gte('amount_raised', filters.amountRange.min)
+          .lte('amount_raised', filters.amountRange.max)
+          .not('amount_raised', 'is', null);
+      }
+
+      // Categorical filters (use individual indexes)
+      if (filters.fundingStage && filters.fundingStage.length > 0) {
+        query = query.in('funding_stage', filters.fundingStage);
+      }
+
+      if (filters.climateSector && filters.climateSector.length > 0) {
+        query = query.in('climate_sub_sector', filters.climateSector);
+      }
+
+      if (filters.country && filters.country.length > 0) {
+        query = query.in('geography_country', filters.country);
+      }
+
+      // Apply consistent ordering for cursor pagination
+      query = query
+        .order('date_announced', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false }) // Secondary sort for consistency
+        .limit(limit + 1); // Fetch one extra to check if there are more results
+
+      console.log('FundingService.getDealsWithCursor: Executing cursor-based query...');
+      const { data: deals, error } = await measureQuery(
+        'cursor-paginated-deals',
+        () => query,
+        { 
+          queryType: 'cursor-pagination',
+          filters: Object.keys(filters).filter(key => filters[key as keyof typeof filters] !== undefined),
+          limit,
+          hasCursor: !!filters.cursor,
+          expectedRows: limit
+        }
+      );
+
+      if (error) {
+        console.error('FundingService.getDealsWithCursor: Database error:', error);
+        throw new ApiException(
+          ApiErrorType.DATABASE_ERROR,
+          `Failed to fetch deals with cursor: ${error.message}`,
+          true
+        );
+      }
+
+      console.log('FundingService.getDealsWithCursor: Query results:', {
+        dealsCount: deals?.length || 0,
+        limit
+      });
+
+      const hasMore = deals && deals.length > limit;
+      const resultDeals = hasMore ? deals.slice(0, limit) : (deals || []);
+      
+      // Generate next cursor from the last item
+      const nextCursor = hasMore && resultDeals.length > 0 
+        ? {
+            id: resultDeals[resultDeals.length - 1].id,
+            date: resultDeals[resultDeals.length - 1].date_announced || resultDeals[resultDeals.length - 1].created_at
+          }
+        : null;
+
+      const transformedDeals = resultDeals.map(deal => this.transformDealForDisplay(deal));
+
+      return {
+        data: {
+          data: transformedDeals,
+          hasMore,
+          nextCursor
+        },
+        error: null,
+        loading: false
+      };
+    } catch (error) {
+      console.error('FundingService.getDealsWithCursor: Caught error:', error);
+      
+      const apiError = error instanceof ApiException 
+        ? error 
+        : new ApiException(
+            ApiErrorType.NETWORK_ERROR,
+            `Unexpected error fetching deals with cursor: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            true
+          );
+
+      return {
+        data: null,
+        error: apiError.message,
+        loading: false
+      };
+    }
+  }
+
+  /**
    * Get deal by ID
    */
   static async getDealById(id: number): Promise<ApiResponse<FundingDeal>> {
