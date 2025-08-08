@@ -18,8 +18,6 @@ export function DashboardDataExample() {
     recentDealsLimit: 5,
     enableAutoRefresh: true,
     autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
-    retryAttempts: 3,
-    retryDelay: 1000,
   });
 
   if (loading) {
@@ -160,8 +158,6 @@ export function CustomDashboardDataExample() {
   } = useDashboardData({
     recentDealsLimit: 10, // Show more deals
     enableAutoRefresh: false, // Disable auto-refresh
-    retryAttempts: 5, // More retry attempts
-    retryDelay: 2000, // Longer delay between retries
   });
 
   // Similar rendering logic as above...

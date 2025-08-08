@@ -81,16 +81,16 @@
     - Implement retry functionality for failed data requests
     - _Requirements: 1.3, 6.3_
 
-- [ ] 6. Implement real-time updates and notifications
+- [x] 6. Implement real-time updates and notifications
 
-  - [ ] 6.1 Add real-time subscription to dashboard
+  - [x] 6.1 Add real-time subscription to dashboard
 
     - Use Supabase real-time subscriptions to listen for new rows in the deals table
     - Automatically update dashboard metrics and recent deals when new funding rounds are added
     - Implement smooth UI updates without jarring page refreshes when new data arrives
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 6.2 Create notification system for data updates
+  - [x] 6.2 Create notification system for data updates
     - Implement subtle notifications when new deals are automatically added to the dashboard
     - Add a small indicator showing "X new deals" when fresh data arrives
     - Create smooth animations when new deals appear in the recent deals list

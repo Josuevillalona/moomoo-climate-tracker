@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,8 @@ import {
   RefreshCw
 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useRealTimeDeals } from "@/hooks/useRealTimeDeals";
+import { FundingDeal } from "@/types/api";
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { 
   MetricsCardLoading,
@@ -65,6 +67,10 @@ import {
   FundReturnsErrorFallback,
   SectionErrorDisplay
 } from "@/components/dashboard/ErrorFallbacks";
+import { NewDealsNotification, CompactNewDealsIndicator, NewDealsBadge } from "@/components/dashboard/NewDealsNotification";
+import RealTimeDebug from "@/components/debug/RealTimeDebug";
+import { NewDealHighlight, AnimatedDealItem, useNewDealHighlights } from "@/components/dashboard/NewDealHighlight";
+import { useNotifications, NotificationContainer } from "@/components/ui/notification";
 
 // Static user data (not from API)
 const user = {
@@ -98,11 +104,53 @@ const newsItems = [
 ];
 
 export default function Dashboard() {
-  const { metrics, recentDeals, loading, error, refetch, isRefetching } = useDashboardData({
+  const dashboardOptions = useMemo(() => ({
     recentDealsLimit: 5,
     enableAutoRefresh: true,
     autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
-  });
+  }), []);
+
+  const { metrics, recentDeals, loading, error, refetch, isRefetching } = useDashboardData(dashboardOptions);
+
+  // Memoized callback functions for real-time deals
+  const onNewDeal = useCallback((deal: FundingDeal) => {
+    console.log('🔴 New deal received:', deal);
+    // Track new deal ID for highlighting
+    setNewDealIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(deal.id);
+      return newSet;
+    });
+    // Automatically refresh dashboard data when new deal arrives
+    refetch();
+  }, [refetch]);
+
+  const onConnectionChange = useCallback((connected: boolean) => {
+    console.log('🔴 Real-time connection status:', connected);
+  }, []);
+
+  const onError = useCallback((error: string) => {
+    console.error('🔴 Real-time connection error:', error);
+  }, []);
+
+  // Real-time subscription for live updates
+  const realTimeOptions = useMemo(() => ({
+    enabled: true,
+    maxNewDeals: 10,
+    onNewDeal,
+    onConnectionChange,
+    onError
+  }), [onNewDeal, onConnectionChange, onError]);
+
+  const { 
+    newDeals, 
+    isConnected, 
+    connectionError, 
+    lastUpdate, 
+    clearNewDeals, 
+    reconnect,
+    newDealsCount 
+  } = useRealTimeDeals(realTimeOptions);
 
   // Progressive loading states for different sections
   const [sectionsLoaded, setSectionsLoaded] = useState({
@@ -112,15 +160,76 @@ export default function Dashboard() {
     news: true // Static data, always "loaded"
   });
 
+  // Enhanced notification system
+  const { notifications, addNotification, dismissNotification } = useNotifications();
+  const [showNewDealsNotification, setShowNewDealsNotification] = useState(false);
+  const [notificationTimeout, setNotificationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [newDealIds, setNewDealIds] = useState<Set<number>>(new Set());
+  const { isHighlighted, addHighlight, removeHighlight, clearHighlights } = useNewDealHighlights(Array.from(newDealIds));
+
   // Update section loading states based on data availability
   useEffect(() => {
-    setSectionsLoaded({
+    const newSectionsLoaded = {
       metrics: !!metrics,
       recentDeals: recentDeals.length > 0,
       charts: !!metrics, // Charts depend on metrics
       news: true
+    };
+    console.log('🎯 Dashboard: Updating sectionsLoaded:', {
+      hasMetrics: !!metrics,
+      recentDealsCount: recentDeals.length,
+      newSectionsLoaded
     });
+    setSectionsLoaded(newSectionsLoaded);
   }, [metrics, recentDeals]);
+
+  // Handle new deals notifications with enhanced system
+  useEffect(() => {
+    if (newDealsCount > 0 && !showNewDealsNotification) {
+      setShowNewDealsNotification(true);
+      
+      // Add system notification
+      addNotification({
+        type: 'success',
+        title: 'New Funding Data',
+        message: `${newDealsCount} new deal${newDealsCount > 1 ? 's' : ''} added to the dashboard`,
+        duration: 4000,
+      });
+      
+      // Clear any existing timeout
+      if (notificationTimeout) {
+        clearTimeout(notificationTimeout);
+      }
+      
+      // Auto-hide main notification after 6 seconds
+      const timeout = setTimeout(() => {
+        setShowNewDealsNotification(false);
+      }, 6000);
+      
+      setNotificationTimeout(timeout);
+    }
+  }, [newDealsCount, showNewDealsNotification, notificationTimeout, addNotification]);
+
+  // Cleanup notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (notificationTimeout) {
+        clearTimeout(notificationTimeout);
+      }
+    };
+  }, [notificationTimeout]);
+
+  // Clear new deal highlights after 15 seconds
+  useEffect(() => {
+    if (newDealIds.size > 0) {
+      const timeout = setTimeout(() => {
+        setNewDealIds(new Set());
+        clearHighlights();
+      }, 15000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [newDealIds, clearHighlights]);
 
   // Debug logging
   console.log('🎯 Dashboard render:', {
@@ -128,12 +237,20 @@ export default function Dashboard() {
     error,
     metricsLoaded: !!metrics,
     recentDealsCount: recentDeals?.length || 0,
-    sectionsLoaded
+    sectionsLoaded,
+    realTimeConnected: isConnected,
+    newDealsCount,
+    lastRealTimeUpdate: lastUpdate
   });
 
   // Show full loading skeleton only on initial load
   if (loading && !metrics && recentDeals.length === 0) {
-    console.log('⏳ Dashboard: Showing initial loading state');
+    console.log('⏳ Dashboard: Showing initial loading state', {
+      loading,
+      hasMetrics: !!metrics,
+      recentDealsLength: recentDeals.length,
+      shouldShowLoading: loading && !metrics && recentDeals.length === 0
+    });
     return <DashboardSkeleton />;
   }
 
@@ -282,6 +399,13 @@ export default function Dashboard() {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>
+                {/* Real-time connection indicator */}
+                <div className="flex items-center space-x-2 px-3 py-1 rounded-lg bg-gray-100">
+                  <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
+                  <span className="text-xs text-gray-600">
+                    {isConnected ? 'Live' : 'Offline'}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -316,6 +440,48 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Real-time connection status indicator */}
+          {!isConnected && (
+            <div className="fixed top-20 left-6 z-50 bg-red-500/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg shadow-lg">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-red-300 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">Real-time updates disconnected</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={reconnect}
+                  className="text-white hover:bg-red-600/50 p-1 h-auto"
+                >
+                  Reconnect
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced new deals notification */}
+          <NewDealsNotification
+            newDealsCount={newDealsCount}
+            isVisible={showNewDealsNotification && newDealsCount > 0}
+            onDismiss={() => {
+              setShowNewDealsNotification(false);
+              clearNewDeals();
+            }}
+            onViewDeals={() => {
+              // Scroll to recent deals section
+              const recentDealsSection = document.getElementById('recent-deals-section');
+              recentDealsSection?.scrollIntoView({ behavior: 'smooth' });
+              setShowNewDealsNotification(false);
+            }}
+            autoHideDuration={6000}
+          />
+
+          {/* System notifications container */}
+          <NotificationContainer
+            notifications={notifications}
+            position="top-right"
+            maxNotifications={3}
+          />
 
           {/* Top Row - Charts and Stats */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -541,11 +707,33 @@ export default function Dashboard() {
                 loadingComponent={<RecentDealsLoading />}
                 delay={400}
               >
-                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.3s' }}>
+                <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.3s' }} id="recent-deals-section">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
-                      <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
+                      <div className="flex items-center space-x-2">
+                        <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
+                        {/* New deals badge */}
+                        <div className="relative">
+                          <NewDealsBadge 
+                            count={newDealsCount} 
+                            isVisible={newDealsCount > 0} 
+                            size="sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {/* Compact new deals indicator */}
+                        <CompactNewDealsIndicator
+                          newDealsCount={newDealsCount}
+                          isVisible={newDealsCount > 0}
+                          onClick={() => {
+                            // Clear new deals and refresh
+                            clearNewDeals();
+                            refetch();
+                          }}
+                        />
+                        <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -555,13 +743,25 @@ export default function Dashboard() {
                         <span>Type</span>
                         <span>Date</span>
                       </div>
-                      {recentDeals.length > 0 ? recentDeals.map((deal, index) => (
-                        <div key={deal.id} className="flex justify-between items-center text-sm animate-loading-fade" style={{ animationDelay: `${index * 0.1}s` }}>
-                          <span className="text-blue-600 hover:underline cursor-pointer">{deal.companyName}</span>
-                          <span className="text-gray-600">{deal.fundingStage || 'N/A'}</span>
-                          <span className="text-gray-500">{deal.formattedDate}</span>
-                        </div>
-                      )) : (
+                      {recentDeals.length > 0 ? recentDeals.map((deal, index) => {
+                        const isNewDeal = newDealIds.has(deal.id);
+                        return (
+                          <AnimatedDealItem
+                            key={deal.id}
+                            deal={deal}
+                            isNew={isNewDeal}
+                            index={index}
+                          >
+                            <div className="flex justify-between items-center text-sm rounded-lg px-2 py-1 transition-all duration-300">
+                              <span className={`hover:underline cursor-pointer ${isNewDeal ? 'text-green-700 font-medium' : 'text-blue-600'}`}>
+                                {deal.companyName}
+                              </span>
+                              <span className="text-gray-600">{deal.fundingStage || 'N/A'}</span>
+                              <span className="text-gray-500">{deal.formattedDate}</span>
+                            </div>
+                          </AnimatedDealItem>
+                        );
+                      }) : (
                         <div className="text-center py-4">
                           <p className="text-gray-500 text-sm">No recent deals available</p>
                         </div>
@@ -834,6 +1034,13 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
+      
+      {/* Debug Component - Remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 w-96 max-h-96 overflow-hidden z-50">
+          <RealTimeDebug />
+        </div>
+      )}
     </div>
     </ErrorBoundary>
   );

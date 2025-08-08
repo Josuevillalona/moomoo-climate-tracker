@@ -6,6 +6,7 @@ export interface UseDashboardDataOptions {
   recentDealsLimit?: number;
   enableAutoRefresh?: boolean;
   autoRefreshInterval?: number;
+  onDataUpdate?: (metrics: DashboardMetrics | null, deals: FundingDeal[]) => void;
 }
 
 export interface UseDashboardDataReturn {
@@ -20,7 +21,14 @@ export interface UseDashboardDataReturn {
 }
 
 export function useDashboardData(options: UseDashboardDataOptions = {}): UseDashboardDataReturn {
-  console.log('🎯 useDashboardData: Hook starting with options:', options);
+  const hookId = useRef(Math.random().toString(36).substr(2, 9));
+  console.log('🎯 useDashboardData: Hook starting with options:', options, 'hookId:', hookId.current);
+  
+  // Extract and memoize options to prevent unnecessary re-renders
+  const recentDealsLimit = options.recentDealsLimit || 5;
+  const enableAutoRefresh = options.enableAutoRefresh || false;
+  const autoRefreshInterval = options.autoRefreshInterval || 5 * 60 * 1000;
+  const onDataUpdate = options.onDataUpdate;
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,82 +38,179 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const hasRunRef = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
-  console.log('🎯 useDashboardData: States initialized, about to set up data fetch');
+  console.log('🎯 useDashboardData: States initialized, about to set up data fetch, hookId:', hookId.current);
 
-  // Force immediate execution without any mount checks
-  if (!hasRunRef.current) {
-    hasRunRef.current = true;
-    console.log('🚀 IMMEDIATE EXECUTION: Starting data fetch right now!');
+  // Fetch data function
+  const fetchData = useCallback(async (isRefetch = false) => {
+    console.log('🚀 useDashboardData: fetchData called with isRefetch:', isRefetch, 'hookId:', hookId.current);
     
-    // Use setTimeout to avoid state updates during render
-    setTimeout(async () => {
-      try {
-        console.log('🚀 IMMEDIATE: Calling APIs...');
+    // Set loading state immediately
+    if (mountedRef.current) {
+      if (isRefetch) {
+        setIsRefetching(true);
+      } else {
         setLoading(true);
-        setError(null);
-        
-        const [metricsResponse, dealsResponse] = await Promise.all([
-          FundingService.getDashboardMetrics(),
-          FundingService.getRecentDeals(options.recentDealsLimit || 5)
-        ]);
-        
-        console.log('🚀 IMMEDIATE: API responses received:', {
-          metrics: metricsResponse,
-          deals: dealsResponse
-        });
-        
-        // Force state update without any checks
-        console.log('🚀 IMMEDIATE: Forcing state update now...');
+      }
+      setError(null);
+    }
+    
+    try {
+      console.log('🚀 useDashboardData: Calling APIs...');
+      const [metricsResponse, dealsResponse] = await Promise.all([
+        FundingService.getDashboardMetrics(),
+        FundingService.getRecentDeals(recentDealsLimit)
+      ]);
+      
+      console.log('🚀 useDashboardData: API responses received');
+      
+      // Check for API errors
+      if (metricsResponse.error || dealsResponse.error) {
+        const errorMessage = metricsResponse.error || dealsResponse.error || 'Unknown error';
+        throw new Error(`Failed to fetch dashboard metrics: ${errorMessage}`);
+      }
+      
+      // Update state if component is still mounted
+      if (mountedRef.current) {
+        console.log('🚀 useDashboardData: Setting data');
         setMetrics(metricsResponse.data);
         setRecentDeals(dealsResponse.data || []);
         setLastUpdated(new Date());
-        setLoading(false);
-        console.log('🚀 IMMEDIATE: State updated successfully!', {
-          hasMetrics: !!metricsResponse.data,
-          dealsCount: dealsResponse.data?.length || 0,
-          loadingState: false
-        });
         
-      } catch (err) {
-        console.error('🚀 IMMEDIATE: Error fetching data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        // Clear loading state immediately after setting data
+        console.log('🚀 useDashboardData: Clearing loading state immediately');
         setLoading(false);
+        setIsRefetching(false);
+        
+        if (onDataUpdate) {
+          onDataUpdate(metricsResponse.data, dealsResponse.data || []);
+        }
+        
+        console.log('🚀 useDashboardData: Data updated successfully!');
       }
-    }, 10); // Even shorter delay
-  }
+      
+    } catch (err) {
+      console.error('🚀 useDashboardData: Error fetching data:', err);
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      }
+    }
+    
+    // Clear loading state in error case only
+    if (mountedRef.current) {
+      console.log('🚀 useDashboardData: Clearing loading state after error');
+      setLoading(false);
+      setIsRefetching(false);
+    }
+    
+  }, [recentDealsLimit]);
+
+  // Initial data fetch - run immediately on mount
+  useEffect(() => {
+    console.log('🚀 useDashboardData: Initial fetch effect triggered, hookId:', hookId.current);
+    console.log('🚀 useDashboardData: About to call fetchData');
+    
+    // Call fetchData directly to avoid dependency issues
+    const initialFetch = async () => {
+      console.log('🚀 useDashboardData: fetchData called with isRefetch: false, hookId:', hookId.current);
+      
+      // Set loading state immediately
+      if (mountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
+      
+      try {
+        console.log('🚀 useDashboardData: Calling APIs...');
+        const [metricsResponse, dealsResponse] = await Promise.all([
+          FundingService.getDashboardMetrics(),
+          FundingService.getRecentDeals(recentDealsLimit)
+        ]);
+        
+        console.log('🚀 useDashboardData: API responses received');
+        
+        // Check for API errors
+        if (metricsResponse.error || dealsResponse.error) {
+          const errorMessage = metricsResponse.error || dealsResponse.error || 'Unknown error';
+          throw new Error(`Failed to fetch dashboard metrics: ${errorMessage}`);
+        }
+        
+        // Update state - React handles unmounted component state updates safely
+        console.log('🚀 useDashboardData: Setting data');
+        setMetrics(metricsResponse.data);
+        setRecentDeals(dealsResponse.data || []);
+        setLastUpdated(new Date());
+        
+        // Clear loading state immediately after setting data
+        console.log('🚀 useDashboardData: Clearing loading state immediately');
+        setLoading(false);
+        setIsRefetching(false);
+        
+        if (onDataUpdate && mountedRef.current) {
+          onDataUpdate(metricsResponse.data, dealsResponse.data || []);
+        }
+      } catch (err) {
+        console.error('🚀 useDashboardData: Error fetching data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        // Clear loading state in error case only
+        console.log('🚀 useDashboardData: Clearing loading state after error');
+        setLoading(false);
+        setIsRefetching(false);
+      }
+    };
+    
+    initialFetch();
+  }, []); // Empty dependency array to run only once on mount
+
+  // Auto-refresh setup
+  useEffect(() => {
+    if (enableAutoRefresh) {
+      console.log('🔄 Setting up auto-refresh with interval:', autoRefreshInterval);
+      
+      intervalRef.current = setInterval(() => {
+        if (mountedRef.current) {
+          console.log('🔄 Auto-refresh triggered');
+          fetchData(true);
+        }
+      }, autoRefreshInterval);
+
+      return () => {
+        if (intervalRef.current) {
+          console.log('🔄 Clearing auto-refresh interval');
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
+    }
+  }, [enableAutoRefresh, autoRefreshInterval, fetchData]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
 
   const refetch = useCallback(async () => {
     console.log('🚀 useDashboardData: Manual refetch requested');
-    setIsRefetching(true);
-    
-    try {
-      setError(null);
-      
-      console.log('🚀 useDashboardData: Calling APIs for refetch...');
-      const [metricsResponse, dealsResponse] = await Promise.all([
-        FundingService.getDashboardMetrics(),
-        FundingService.getRecentDeals(options.recentDealsLimit || 5)
-      ]);
-      
-      setMetrics(metricsResponse.data);
-      setRecentDeals(dealsResponse.data || []);
-      setLastUpdated(new Date());
-      console.log('🚀 useDashboardData: Refetch completed');
-    } catch (err) {
-      console.error('🚀 useDashboardData: Refetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to refetch data');
-    } finally {
-      setIsRefetching(false);
-    }
-  }, [options.recentDealsLimit]);
+    await fetchData(true);
+  }, [fetchData]);
 
   console.log('🎯 useDashboardData: Returning state:', {
+    hookId: hookId.current,
     loading,
     error,
     metricsLoaded: !!metrics,
-    recentDealsCount: recentDeals.length
+    recentDealsCount: recentDeals.length,
+    metrics: metrics ? 'has data' : 'null',
+    recentDeals: recentDeals.length > 0 ? `${recentDeals.length} deals` : 'empty array',
+    shouldShowSkeleton: loading && !metrics && recentDeals.length === 0
   });
 
   return {

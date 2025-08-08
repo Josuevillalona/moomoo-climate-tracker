@@ -48,10 +48,25 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
   const channelRef = useRef<RealtimeChannel | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const setupSubscriptionRef = useRef<(() => void) | null>(null);
+
+  // Check if Supabase client is available
+  useEffect(() => {
+    if (!supabase) {
+      console.error('❌ Supabase client not available');
+      setConnectionError('Supabase client not initialized');
+      return;
+    }
+    console.log('✅ Supabase client available for real-time connections');
+  }, []);
 
   // Cleanup function
   useEffect(() => {
+    mountedRef.current = true;
+    console.log('🎯 useRealTimeDeals mounted');
+    
     return () => {
+      console.log('🧹 useRealTimeDeals unmounting');
       mountedRef.current = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -68,18 +83,32 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
 
   // Handle new deal insertion
   const handleNewDeal = useCallback((payload: RealtimePostgresChangesPayload<DatabaseDeal>) => {
+    console.log('🆕 Real-time payload received:', {
+      eventType: payload.eventType,
+      hasNew: !!payload.new,
+      mounted: mountedRef.current
+    });
+
     if (!mountedRef.current || payload.eventType !== 'INSERT' || !payload.new) {
+      console.log('⚠️ Ignoring payload:', {
+        mounted: mountedRef.current,
+        eventType: payload.eventType,
+        hasNew: !!payload.new
+      });
       return;
     }
 
     try {
+      console.log('🔄 Transforming new deal:', payload.new);
       // Transform the database deal to UI format
       const transformedDeal = DashboardTransformer.transformSingleDeal(payload.new);
+      console.log('✅ Deal transformed successfully:', transformedDeal);
       
       if (mountedRef.current) {
         setNewDeals(prev => {
           // Add new deal to the beginning and limit the array size
           const updated = [transformedDeal, ...prev].slice(0, opts.maxNewDeals);
+          console.log(`📊 Updated new deals list: ${updated.length} deals`);
           return updated;
         });
         
@@ -87,11 +116,15 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
         
         // Call the callback if provided
         opts.onNewDeal(transformedDeal);
+        console.log('🎉 New deal processed successfully');
       }
     } catch (error) {
       const errorMessage = error instanceof Error 
         ? `Failed to process new deal: ${error.message}`
         : 'Failed to process new deal: Unknown error';
+      
+      console.error('❌ Error processing new deal:', error);
+      console.error('❌ Payload that caused error:', payload.new);
       
       if (mountedRef.current) {
         setConnectionError(errorMessage);
@@ -119,37 +152,25 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
     opts.onConnectionChange(connected);
   }, [opts]);
 
-  // Reconnect with exponential backoff
-  const attemptReconnect = useCallback(() => {
-    if (!mountedRef.current || reconnectAttemptsRef.current >= opts.reconnectAttempts) {
-      return;
-    }
-
-    reconnectAttemptsRef.current += 1;
-    const delay = opts.reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1);
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        // Unsubscribe from existing channel
-        if (channelRef.current) {
-          supabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-        }
-        
-        // Create new subscription
-        setupSubscription();
-      }
-    }, delay);
-  }, [opts.reconnectAttempts, opts.reconnectDelay]);
-
   // Setup real-time subscription
   const setupSubscription = useCallback(() => {
     if (!mountedRef.current || !opts.enabled) return;
 
     try {
+      // Clean up any existing channel first
+      if (channelRef.current) {
+        console.log('🔄 Cleaning up existing channel before creating new one');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+
+      // Create a unique channel name to avoid conflicts
+      const channelName = `deals-changes-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log('🚀 Creating new real-time channel:', channelName);
+
       // Create a new channel for deals table
       const channel = supabase
-        .channel('deals-changes')
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -160,30 +181,73 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
           handleNewDeal
         )
         .subscribe((status, error) => {
+          console.log('📡 Real-time subscription status:', status, error?.message || '');
+          
+          if (!mountedRef.current) {
+            console.log('⚠️ Component unmounted, ignoring status change');
+            return;
+          }
+
           handleConnectionChange(status, error);
           
           // Attempt reconnection on certain error types
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            attemptReconnect();
+            console.log('🔄 Connection error, attempting reconnect...');
+            // Use the ref to avoid circular dependency
+            if (setupSubscriptionRef.current && reconnectAttemptsRef.current < opts.reconnectAttempts) {
+              reconnectAttemptsRef.current += 1;
+              const delay = opts.reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1);
+              
+              console.log(`🔄 Attempting reconnect ${reconnectAttemptsRef.current}/${opts.reconnectAttempts} in ${delay}ms`);
+              
+              reconnectTimeoutRef.current = setTimeout(() => {
+                if (mountedRef.current) {
+                  console.log('🚀 Executing reconnect attempt');
+                  // Unsubscribe from existing channel
+                  if (channelRef.current) {
+                    supabase.removeChannel(channelRef.current);
+                    channelRef.current = null;
+                  }
+                  
+                  // Create new subscription using ref
+                  setupSubscriptionRef.current?.();
+                } else {
+                  console.log('⚠️ Component unmounted during reconnect attempt');
+                }
+              }, delay);
+            }
           }
         });
 
       channelRef.current = channel;
+      console.log('✅ Real-time subscription setup complete');
     } catch (error) {
       const errorMessage = error instanceof Error 
         ? `Failed to setup real-time subscription: ${error.message}`
         : 'Failed to setup real-time subscription: Unknown error';
+      
+      console.error('❌ Real-time setup error:', errorMessage);
       
       if (mountedRef.current) {
         setConnectionError(errorMessage);
         opts.onError(errorMessage);
       }
     }
-  }, [opts.enabled, handleNewDeal, handleConnectionChange, attemptReconnect, opts]);
+  }, [opts.enabled, handleNewDeal, handleConnectionChange, opts]);
+
+  // Update the ref whenever setupSubscription changes
+  useEffect(() => {
+    setupSubscriptionRef.current = setupSubscription;
+  }, [setupSubscription]);
 
   // Manual reconnect function
   const reconnect = useCallback(() => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current) {
+      console.log('⚠️ Cannot reconnect: component unmounted');
+      return;
+    }
+
+    console.log('🔄 Manual reconnect triggered');
 
     // Reset reconnection attempts
     reconnectAttemptsRef.current = 0;
@@ -196,6 +260,7 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
 
     // Unsubscribe from existing channel
     if (channelRef.current) {
+      console.log('🧹 Removing existing channel for reconnect');
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
@@ -204,16 +269,35 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
     setIsConnected(false);
     setConnectionError(null);
 
-    // Setup new subscription
-    setupSubscription();
-  }, [setupSubscription]);
+    // Setup new subscription with a small delay
+    setTimeout(() => {
+      if (mountedRef.current && setupSubscriptionRef.current) {
+        console.log('🚀 Setting up new subscription after reconnect');
+        setupSubscriptionRef.current();
+      }
+    }, 500);
+  }, []);
 
   // Initialize subscription on mount or when enabled changes
   useEffect(() => {
+    console.log('🎯 useRealTimeDeals effect triggered, enabled:', opts.enabled);
+    
     if (opts.enabled) {
-      setupSubscription();
+      // Add a small delay to avoid React Strict Mode double-mounting issues
+      const timeoutId = setTimeout(() => {
+        if (mountedRef.current && setupSubscriptionRef.current) {
+          console.log('⏰ Setting up subscription after delay');
+          setupSubscriptionRef.current();
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timeoutId);
+        console.log('🧹 Cleaning up subscription setup timeout');
+      };
     } else {
       // Clean up subscription when disabled
+      console.log('❌ Real-time disabled, cleaning up');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -221,9 +305,12 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
       setIsConnected(false);
       setConnectionError(null);
     }
+  }, [opts.enabled]);
 
-    // Cleanup on unmount or dependency change
+  // Separate cleanup effect for unmount
+  useEffect(() => {
     return () => {
+      console.log('🧹 Component unmounting, cleaning up real-time resources');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -233,7 +320,7 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
         reconnectTimeoutRef.current = null;
       }
     };
-  }, [opts.enabled, setupSubscription]);
+  }, []);
 
   // Handle browser visibility changes to reconnect when user returns
   useEffect(() => {
