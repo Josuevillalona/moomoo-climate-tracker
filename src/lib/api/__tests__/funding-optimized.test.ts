@@ -1,20 +1,6 @@
 import { FundingService } from "../funding";
 import { supabase } from "../../supabase";
 import { ApiException, ApiErrorType, DatabaseDeal, DealFilters } from "../../../types/api";
-import { it } from "node:test";
-import { describe } from "node:test";
-import { it } from "node:test";
-import { it } from "node:test";
-import { it } from "node:test";
-import { describe } from "node:test";
-import { it } from "node:test";
-import { it } from "node:test";
-import { describe } from "node:test";
-import { it } from "node:test";
-import { it } from "node:test";
-import { describe } from "node:test";
-import { beforeEach } from "node:test";
-import { describe } from "node:test";
 
 // Mock Supabase
 jest.mock("../../supabase", () => ({

@@ -50,20 +50,24 @@ describe('withRetry', () => {
     // First call should happen immediately
     expect(mockFn).toHaveBeenCalledTimes(1);
 
-    // Fast-forward first backoff period (1000ms)
+    // Fast-forward first backoff period (1000ms) and flush promises
     jest.advanceTimersByTime(1000);
-    await Promise.resolve(); // Allow promise to resolve
+    await jest.runAllTicks();
 
     expect(mockFn).toHaveBeenCalledTimes(2);
 
-    // Fast-forward second backoff period (2000ms - exponential)
+    // Fast-forward second backoff period (2000ms - exponential) and flush promises
     jest.advanceTimersByTime(2000);
-    await Promise.resolve();
+    await jest.runAllTicks();
 
     expect(mockFn).toHaveBeenCalledTimes(3);
 
+    // Run all remaining timers and promises
+    jest.runAllTimers();
     const result = await retryPromise;
     expect(result).toBe('success');
+    
+    jest.useRealTimers();
   });
 
   it('should handle different error types', async () => {
@@ -106,14 +110,18 @@ describe('withRetry', () => {
 
     expect(mockFn).toHaveBeenCalledTimes(1);
 
-    // Fast-forward custom backoff period
+    // Fast-forward custom backoff period and flush promises
     jest.advanceTimersByTime(500);
-    await Promise.resolve();
+    await jest.runAllTicks();
 
     expect(mockFn).toHaveBeenCalledTimes(2);
 
+    // Run all remaining timers and promises
+    jest.runAllTimers();
     const result = await retryPromise;
     expect(result).toBe('success');
+    
+    jest.useRealTimers();
   });
 
   it('should preserve original error message', async () => {

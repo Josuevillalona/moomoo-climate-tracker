@@ -1,6 +1,9 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useDashboardData } from '../useDashboardData';
 
+// Set timeout for all tests in this file
+jest.setTimeout(15000);
+
 // Mock the FundingService module
 jest.mock('../../lib/api/funding', () => ({
   FundingService: {

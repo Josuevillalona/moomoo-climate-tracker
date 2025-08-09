@@ -383,14 +383,15 @@ describe('Dashboard Error Handling Integration Tests', () => {
       // Mock window.location.reload
       const mockReload = jest.fn();
       
-      // Store original reload function
-      const originalReload = window.location.reload;
-      
       // Mock the reload function
-      Object.defineProperty(window.location, 'reload', {
-        writable: true,
-        value: mockReload,
-      });
+      const mockLocation = {
+        ...window.location,
+        reload: mockReload,
+      };
+      
+      // Replace window.location with our mock
+      delete (window as any).location;
+      (window as any).location = mockLocation;
 
       render(<DashboardErrorFallback error={mockError} retry={jest.fn()} />);
 
