@@ -380,6 +380,9 @@ describe('Dashboard Error Handling Integration Tests', () => {
     });
 
     it('should handle refresh page functionality', async () => {
+      // Store original reload function
+      const originalReload = window.location.reload;
+      
       // Mock window.location.reload
       const mockReload = jest.fn();
       

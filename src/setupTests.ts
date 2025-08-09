@@ -19,21 +19,24 @@ if (typeof global !== 'undefined' && !global.IS_REACT_ACT_ENVIRONMENT) {
   global.IS_REACT_ACT_ENVIRONMENT = true;
 }
 
-// Ensure proper JSDOM setup
-beforeAll(() => {
-  // Ensure document and window are properly set up
-  if (typeof document !== 'undefined' && document.body) {
-    document.body.innerHTML = '';
-  }
+// React 18 specific configuration
+global.React = require('react');
+
+// React 18 compatibility
+Object.defineProperty(global, 'IS_REACT_ACT_ENVIRONMENT', {
+  writable: true,
+  value: true,
+});
+
+// Ensure proper DOM setup
+beforeEach(() => {
+  // Reset document body
+  document.body.innerHTML = '';
 });
 
 // Ensure cleanup after each test
 afterEach(() => {
   cleanup();
-  // Clean up DOM
-  if (typeof document !== 'undefined' && document.body) {
-    document.body.innerHTML = '';
-  }
 });
 
 // Mock IntersectionObserver
@@ -130,40 +133,9 @@ Object.defineProperty(window, 'navigator', {
   },
 });
 
-// Mock document methods
-Object.defineProperty(document, 'createElement', {
-  writable: true,
-  value: jest.fn().mockImplementation((tagName: string) => {
-    const element = {
-      tagName: tagName.toUpperCase(),
-      href: '',
-      download: '',
-      click: jest.fn(),
-      remove: jest.fn(),
-      appendChild: jest.fn(),
-      removeChild: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      setAttribute: jest.fn(),
-      getAttribute: jest.fn(),
-      style: {},
-      id: '',
-      className: '',
-    };
-    return element;
-  }),
-});
+// Note: Removed document.createElement mock to allow real DOM elements
 
-// Mock document.body methods
-Object.defineProperty(document.body, 'appendChild', {
-  writable: true,
-  value: jest.fn(),
-});
-
-Object.defineProperty(document.body, 'removeChild', {
-  writable: true,
-  value: jest.fn(),
-});
+// Note: Removed document.body mocks to allow real DOM manipulation
 
 // Mock URL methods
 Object.defineProperty(URL, 'createObjectURL', {

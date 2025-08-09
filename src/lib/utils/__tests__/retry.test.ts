@@ -38,36 +38,31 @@ describe('withRetry', () => {
   });
 
   it('should use exponential backoff', async () => {
-    jest.useFakeTimers();
+    // Test that exponential backoff delays increase properly
+    const originalSetTimeout = global.setTimeout;
+    const delays: number[] = [];
     
+    global.setTimeout = jest.fn().mockImplementation((callback, delay) => {
+      delays.push(delay);
+      return originalSetTimeout(callback, 0); // Execute immediately for test
+    });
+
     const mockFn = jest.fn()
       .mockRejectedValueOnce(new Error('First failure'))
       .mockRejectedValueOnce(new Error('Second failure'))
       .mockResolvedValueOnce('success');
 
-    const retryPromise = withRetry(mockFn, 3, 1000);
+    const result = await withRetry(mockFn, 3, 1000);
 
-    // First call should happen immediately
-    expect(mockFn).toHaveBeenCalledTimes(1);
-
-    // Fast-forward first backoff period (1000ms) and flush promises
-    jest.advanceTimersByTime(1000);
-    await jest.runAllTicks();
-
-    expect(mockFn).toHaveBeenCalledTimes(2);
-
-    // Fast-forward second backoff period (2000ms - exponential) and flush promises
-    jest.advanceTimersByTime(2000);
-    await jest.runAllTicks();
-
-    expect(mockFn).toHaveBeenCalledTimes(3);
-
-    // Run all remaining timers and promises
-    jest.runAllTimers();
-    const result = await retryPromise;
     expect(result).toBe('success');
+    expect(mockFn).toHaveBeenCalledTimes(3);
     
-    jest.useRealTimers();
+    // Check that delays follow exponential backoff pattern
+    expect(delays).toHaveLength(2); // Two delays for two retries
+    expect(delays[0]).toBe(1000); // First retry: 1000 * 2^0 = 1000
+    expect(delays[1]).toBe(2000); // Second retry: 1000 * 2^1 = 2000
+
+    global.setTimeout = originalSetTimeout;
   });
 
   it('should handle different error types', async () => {
@@ -106,18 +101,19 @@ describe('withRetry', () => {
       .mockRejectedValueOnce(new Error('First failure'))
       .mockResolvedValueOnce('success');
 
+    // Start the retry process
     const retryPromise = withRetry(mockFn, 2, 500);
 
+    // Allow the first call to execute
+    await Promise.resolve();
     expect(mockFn).toHaveBeenCalledTimes(1);
 
-    // Fast-forward custom backoff period and flush promises
+    // Fast-forward custom backoff period
     jest.advanceTimersByTime(500);
-    await jest.runAllTicks();
-
+    await Promise.resolve();
     expect(mockFn).toHaveBeenCalledTimes(2);
 
-    // Run all remaining timers and promises
-    jest.runAllTimers();
+    // Complete the promise
     const result = await retryPromise;
     expect(result).toBe('success');
     

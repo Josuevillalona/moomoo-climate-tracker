@@ -9,11 +9,19 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage --watchAll=false",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "db:optimize": "node scripts/apply-db-optimizations.js",
-    "db:analyze": "node scripts/analyze-db-performance.js"
+    "db:analyze": "node scripts/analyze-db-performance.js",
+    "deploy:prepare": "./scripts/deploy.sh",
+    "deploy:staging": "vercel --env staging",
+    "deploy:production": "vercel --prod",
+    "env:setup": "./scripts/setup-env.sh",
+    "env:validate": "./scripts/setup-env.sh validate",
+    "analyze": "ANALYZE=true npm run build",
+    "health:check": "curl -f http://localhost:3000/api/health || exit 1"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.0.4",
@@ -45,7 +53,7 @@
   "devDependencies": {
     "@playwright/test": "^1.54.2",
     "@testing-library/jest-dom": "^6.6.4",
-    "@testing-library/react": "^13.4.0",
+    "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.14.11",
     "@types/react": "^18.3.3",

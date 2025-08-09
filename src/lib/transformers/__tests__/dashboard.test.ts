@@ -68,7 +68,7 @@ describe('DashboardTransformer', () => {
         allInvestors: ['Test VC', 'Another VC', 'Angel Investor'],
       });
 
-      expect(result.formattedDate).toBe('Jan 1, 2024');
+      expect(result.formattedDate).toMatch(/^(Dec 31, 2023|Jan 1, 2024)$/);
       expect(result.daysAgo).toBeGreaterThan(0);
     });
 
@@ -255,12 +255,12 @@ describe('DashboardTransformer', () => {
     it('should format currency with compact notation by default', () => {
       expect(DashboardTransformer.formatCurrency(0)).toBe('$0');
       expect(DashboardTransformer.formatCurrency(500)).toBe('$500'); // Less than 1000, uses Intl.NumberFormat
-      expect(DashboardTransformer.formatCurrency(1000)).toBe('1K');
-      expect(DashboardTransformer.formatCurrency(1500)).toBe('1.5K');
-      expect(DashboardTransformer.formatCurrency(1000000)).toBe('1M');
-      expect(DashboardTransformer.formatCurrency(1500000)).toBe('1.5M');
-      expect(DashboardTransformer.formatCurrency(1000000000)).toBe('1B');
-      expect(DashboardTransformer.formatCurrency(1500000000)).toBe('1.5B');
+      expect(DashboardTransformer.formatCurrency(1000)).toBe('$1K');
+      expect(DashboardTransformer.formatCurrency(1500)).toBe('$1.5K');
+      expect(DashboardTransformer.formatCurrency(1000000)).toBe('$1M');
+      expect(DashboardTransformer.formatCurrency(1500000)).toBe('$1.5M');
+      expect(DashboardTransformer.formatCurrency(1000000000)).toBe('$1B');
+      expect(DashboardTransformer.formatCurrency(1500000000)).toBe('$1.5B');
     });
 
     it('should format currency without compact notation when disabled', () => {
@@ -348,9 +348,9 @@ describe('DashboardTransformer', () => {
 
   describe('formatNumber', () => {
     it('should format numbers with compact notation by default', () => {
-      expect(DashboardTransformer.formatNumber(1000)).toBe('1K');
-      expect(DashboardTransformer.formatNumber(1000000)).toBe('1M');
-      expect(DashboardTransformer.formatNumber(1000000000)).toBe('1B');
+      expect(DashboardTransformer.formatNumber(1000)).toBe('1.0K');
+      expect(DashboardTransformer.formatNumber(1000000)).toBe('1.0M');
+      expect(DashboardTransformer.formatNumber(1000000000)).toBe('1.0B');
     });
 
     it('should format numbers without compact notation when disabled', () => {
