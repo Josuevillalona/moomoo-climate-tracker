@@ -3,6 +3,8 @@ import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supab
 import { supabase } from '../lib/supabase';
 import { DatabaseDeal, FundingDeal, ApiErrorType, ApiException } from '../types/api';
 import { DashboardTransformer } from '../lib/transformers/dashboard';
+import { realtimeMonitor, ConnectionEvent, ConnectionState } from '../lib/monitoring/realtimeMonitor';
+import { logRealtimeError } from '../lib/monitoring/errorLogger';
 
 export interface UseRealTimeDealsReturn {
   newDeals: FundingDeal[];
@@ -168,6 +170,15 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
       const channelName = `deals-changes-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       console.log('🚀 Creating new real-time channel:', channelName);
 
+      // Track connection attempt
+      const connectionStartTime = performance.now();
+      realtimeMonitor.trackConnectionEvent(
+        channelName,
+        ConnectionEvent.CONNECT,
+        ConnectionState.CONNECTING,
+        { channelName, enabled: opts.enabled }
+      );
+
       // Create a new channel for deals table
       const channel = supabase
         .channel(channelName)
@@ -188,17 +199,50 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
             return;
           }
 
+          // Track connection status changes
+          const connectionDuration = performance.now() - connectionStartTime;
+          const connectionState = status === 'SUBSCRIBED' ? ConnectionState.CONNECTED :
+                                 status === 'CHANNEL_ERROR' ? ConnectionState.ERROR :
+                                 status === 'TIMED_OUT' ? ConnectionState.ERROR :
+                                 ConnectionState.CONNECTING;
+
+          realtimeMonitor.trackConnectionEvent(
+            channelName,
+            status === 'SUBSCRIBED' ? ConnectionEvent.CONNECT : ConnectionEvent.ERROR,
+            connectionState,
+            { status, subscriptionDuration: connectionDuration },
+            error,
+            connectionDuration
+          );
+
           handleConnectionChange(status, error);
           
           // Attempt reconnection on certain error types
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.log('🔄 Connection error, attempting reconnect...');
+            
+            // Log the error
+            if (error) {
+              logRealtimeError(channelName, 'subscription_error', error);
+            }
+
             // Use the ref to avoid circular dependency
             if (setupSubscriptionRef.current && reconnectAttemptsRef.current < opts.reconnectAttempts) {
               reconnectAttemptsRef.current += 1;
               const delay = opts.reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1);
               
               console.log(`🔄 Attempting reconnect ${reconnectAttemptsRef.current}/${opts.reconnectAttempts} in ${delay}ms`);
+              
+              // Track reconnection attempt
+              realtimeMonitor.trackReconnection(
+                channelName,
+                reconnectAttemptsRef.current,
+                opts.reconnectAttempts,
+                0,
+                false,
+                error,
+                { delay, reason: status }
+              );
               
               reconnectTimeoutRef.current = setTimeout(() => {
                 if (mountedRef.current) {
@@ -227,6 +271,13 @@ export function useRealTimeDeals(options: UseRealTimeDealsOptions = {}): UseReal
         : 'Failed to setup real-time subscription: Unknown error';
       
       console.error('❌ Real-time setup error:', errorMessage);
+      
+      // Log the setup error
+      logRealtimeError(
+        'setup_subscription',
+        'subscription_setup_failed',
+        error instanceof Error ? error : new Error(errorMessage)
+      );
       
       if (mountedRef.current) {
         setConnectionError(errorMessage);

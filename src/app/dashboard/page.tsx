@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ import {
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useRealTimeDeals } from "@/hooks/useRealTimeDeals";
 import { FundingDeal } from "@/types/api";
+import { useDashboardAnalytics } from "@/hooks/useAnalytics";
+import { RefreshType } from "@/lib/analytics/userAnalytics";
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { 
   MetricsCardLoading,
@@ -111,6 +113,10 @@ export default function Dashboard() {
   }), []);
 
   const { metrics, recentDeals, loading, error, refetch, isRefetching } = useDashboardData(dashboardOptions);
+  
+  // Analytics tracking
+  const analytics = useDashboardAnalytics();
+  const dashboardLoadStart = useRef<number>(Date.now());
 
   // Memoized callback functions for real-time deals
   const onNewDeal = useCallback((deal: FundingDeal) => {
@@ -121,9 +127,17 @@ export default function Dashboard() {
       newSet.add(deal.id);
       return newSet;
     });
+    // Track real-time data refresh
+    analytics.trackDataRefresh(RefreshType.REALTIME, 'new-deal', 0, true, {
+      dealId: deal.id,
+      companyName: deal.company_name,
+      recordsUpdated: 1,
+      userInitiated: false,
+      backgroundRefresh: true
+    });
     // Automatically refresh dashboard data when new deal arrives
     refetch();
-  }, [refetch]);
+  }, [refetch, analytics]);
 
   const onConnectionChange = useCallback((connected: boolean) => {
     console.log('🔴 Real-time connection status:', connected);
@@ -181,7 +195,19 @@ export default function Dashboard() {
       newSectionsLoaded
     });
     setSectionsLoaded(newSectionsLoaded);
-  }, [metrics, recentDeals]);
+
+    // Track dashboard load completion when all sections are loaded
+    if (newSectionsLoaded.metrics && newSectionsLoaded.recentDeals && !loading) {
+      const loadTime = Date.now() - dashboardLoadStart.current;
+      analytics.trackDashboardLoad({
+        totalLoadTime: loadTime,
+        apiCallsCount: 2, // metrics + recent deals
+        errorCount: error ? 1 : 0,
+        sessionId: analytics.sessionId,
+        timestamp: new Date()
+      });
+    }
+  }, [metrics, recentDeals, loading, error, analytics]);
 
   // Handle new deals notifications with enhanced system
   useEffect(() => {
@@ -340,11 +366,19 @@ export default function Dashboard() {
 
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
-          <Button variant="secondary" className="w-full justify-start bg-brand-yellow text-white hover:bg-brand-yellow/90">
+          <Button 
+            variant="secondary" 
+            className="w-full justify-start bg-brand-yellow text-white hover:bg-brand-yellow/90"
+            onClick={() => analytics.trackFeatureUsage('navigation-dashboard')}
+          >
             <Home className="w-4 h-4 mr-3" />
             Dashboard
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-white hover:bg-brand-blue/80"
+            onClick={() => analytics.trackFeatureUsage('navigation-search')}
+          >
             <Search className="w-4 h-4 mr-3" />
             Advanced Search
           </Button>
@@ -395,7 +429,13 @@ export default function Dashboard() {
                   <Plus className="w-4 h-4 mr-2" />
                   Add widgets
                 </Button>
-                <Button variant="outline" size="sm" onClick={refetch}>
+                <Button variant="outline" size="sm" onClick={() => {
+                  analytics.trackFeatureUsage('dashboard-refresh', { source: 'header-button' });
+                  analytics.startOperation('manual-refresh');
+                  refetch().finally(() => {
+                    analytics.endOperation('manual-refresh', true, { source: 'header-button' });
+                  });
+                }}>
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>

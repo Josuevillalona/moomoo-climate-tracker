@@ -12,6 +12,9 @@ import {
   SubscriptionOptions
 } from '../../types/api';
 import { measureQuery, performanceMonitor } from '../utils/performance';
+import { errorLogger, logApiError, logDatabaseError } from '../monitoring/errorLogger';
+import { performanceMonitor as newPerformanceMonitor, trackApiCall, trackDatabaseQuery } from '../monitoring/performanceMonitor';
+import { realtimeMonitor, ConnectionEvent, ConnectionState } from '../monitoring/realtimeMonitor';
 
 export class FundingService {
   /**
@@ -21,7 +24,9 @@ export class FundingService {
   static async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
     console.log('FundingService.getDashboardMetrics: Starting optimized version...');
     
-    try {
+    return trackApiCall(
+      async () => {
+        try {
       // Optimized approach: Use multiple targeted queries instead of fetching all data
       // This reduces data transfer and improves performance for large datasets
       
@@ -38,6 +43,7 @@ export class FundingService {
 
       if (basicError) {
         console.error('FundingService.getDashboardMetrics: Basic metrics error:', basicError);
+        logDatabaseError('fetch_basic_metrics', 'deals', undefined, new Error(basicError.message));
         throw new ApiException(
           ApiErrorType.DATABASE_ERROR,
           `Failed to fetch basic metrics: ${basicError.message}`,
@@ -59,6 +65,7 @@ export class FundingService {
 
       if (sectorError) {
         console.warn('FundingService.getDashboardMetrics: Sector data error:', sectorError);
+        logDatabaseError('fetch_sector_data', 'deals', undefined, new Error(sectorError.message));
       }
 
       // 3. Get country data for top countries calculation
@@ -75,6 +82,7 @@ export class FundingService {
 
       if (countryError) {
         console.warn('FundingService.getDashboardMetrics: Country data error:', countryError);
+        logDatabaseError('fetch_country_data', 'deals', undefined, new Error(countryError.message));
       }
 
       // 4. Get investor data for unique investor count (limited to reduce data transfer)
@@ -90,6 +98,7 @@ export class FundingService {
 
       if (investorError) {
         console.warn('FundingService.getDashboardMetrics: Investor data error:', investorError);
+        logDatabaseError('fetch_investor_data', 'deals', undefined, new Error(investorError.message));
       }
 
       console.log('FundingService.getDashboardMetrics: Query results:', { 
@@ -132,24 +141,36 @@ export class FundingService {
         error: null,
         loading: false
       };
-    } catch (error) {
-      console.error('FundingService.getDashboardMetrics: Caught error:', error);
-      
-      const apiError = error instanceof ApiException 
-        ? error 
-        : new ApiException(
-            ApiErrorType.NETWORK_ERROR,
-            `Unexpected error fetching dashboard metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            true
+        } catch (error) {
+          console.error('FundingService.getDashboardMetrics: Caught error:', error);
+          
+          const apiError = error instanceof ApiException 
+            ? error 
+            : new ApiException(
+                ApiErrorType.NETWORK_ERROR,
+                `Unexpected error fetching dashboard metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                true
+              );
+
+          // Log the error with monitoring
+          logApiError(
+            '/api/dashboard/metrics',
+            'GET',
+            undefined,
+            error instanceof Error ? error : new Error(String(error))
           );
 
-      console.log('FundingService.getDashboardMetrics: Returning error response:', apiError.message);
-      return {
-        data: null,
-        error: apiError.message,
-        loading: false
-      };
-    }
+          console.log('FundingService.getDashboardMetrics: Returning error response:', apiError.message);
+          return {
+            data: null,
+            error: apiError.message,
+            loading: false
+          };
+        }
+      },
+      '/api/dashboard/metrics',
+      'GET'
+    );
   }
 
   /**
