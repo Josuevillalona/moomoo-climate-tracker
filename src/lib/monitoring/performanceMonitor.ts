@@ -76,15 +76,19 @@ class PerformanceMonitor {
   private maxMetrics = 2000; // Keep last 2000 metrics
   private listeners: Array<(metric: PerformanceMetric) => void> = [];
   
+  // Throttling for slow operation logging
+  private lastSlowLogTime = new Map<string, number>();
+  private slowLogThrottle = 15000; // 15 seconds between similar slow operation logs
+  
   // Default performance thresholds (in milliseconds)
   private thresholds: PerformanceThresholds = {
-    [PerformanceCategory.API_CALL]: 2000,
-    [PerformanceCategory.DATABASE_QUERY]: 1000,
+    [PerformanceCategory.API_CALL]: 3000, // Increased from 2000 to 3000
+    [PerformanceCategory.DATABASE_QUERY]: 2000, // Increased from 1000 to 2000
     [PerformanceCategory.REALTIME_CONNECTION]: 5000,
     [PerformanceCategory.UI_RENDER]: 100,
     [PerformanceCategory.DATA_TRANSFORMATION]: 500,
     [PerformanceCategory.CACHE_OPERATION]: 50,
-    [PerformanceCategory.NETWORK_REQUEST]: 3000
+    [PerformanceCategory.NETWORK_REQUEST]: 5000 // Increased from 3000 to 5000
   };
 
   /**
@@ -537,11 +541,24 @@ class PerformanceMonitor {
   }
 
   private logSlowOperation(metric: PerformanceMetric): void {
-    const emoji = this.getCategoryEmoji(metric.category);
-    console.warn(
-      `${emoji} Slow ${metric.category}: ${metric.operation} took ${metric.duration.toFixed(2)}ms (threshold: ${metric.threshold}ms)`,
-      metric.metadata
-    );
+    const operationKey = `${metric.category}:${metric.operation}`;
+    const now = Date.now();
+    const lastLogTime = this.lastSlowLogTime.get(operationKey) || 0;
+    
+    // Only log if enough time has passed since last log of the same operation
+    if (now - lastLogTime > this.slowLogThrottle) {
+      this.lastSlowLogTime.set(operationKey, now);
+      
+      const emoji = this.getCategoryEmoji(metric.category);
+      console.warn(
+        `${emoji} Slow ${metric.category}: ${metric.operation} took ${metric.duration.toFixed(2)}ms (threshold: ${metric.threshold}ms)`,
+        { 
+          ...metric.metadata,
+          isThrottled: true,
+          timeSinceLastLog: now - lastLogTime
+        }
+      );
+    }
   }
 
   private getCategoryEmoji(category: PerformanceCategory): string {

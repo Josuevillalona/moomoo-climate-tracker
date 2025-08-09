@@ -130,7 +130,7 @@ export default function Dashboard() {
     // Track real-time data refresh
     analytics.trackDataRefresh(RefreshType.REALTIME, 'new-deal', 0, true, {
       dealId: deal.id,
-      companyName: deal.company_name,
+      companyName: deal.companyName,
       recordsUpdated: 1,
       userInitiated: false,
       backgroundRefresh: true
@@ -257,17 +257,22 @@ export default function Dashboard() {
     }
   }, [newDealIds, clearHighlights]);
 
-  // Debug logging
-  console.log('🎯 Dashboard render:', {
-    loading,
-    error,
-    metricsLoaded: !!metrics,
-    recentDealsCount: recentDeals?.length || 0,
-    sectionsLoaded,
-    realTimeConnected: isConnected,
-    newDealsCount,
-    lastRealTimeUpdate: lastUpdate
-  });
+  // Debug logging (throttled to reduce spam)
+  const logThrottleRef = useRef<number>(0);
+  const now = Date.now();
+  if (now - logThrottleRef.current > 5000) { // Log at most every 5 seconds
+    console.log('🎯 Dashboard render:', {
+      loading,
+      error,
+      metricsLoaded: !!metrics,
+      recentDealsCount: recentDeals?.length || 0,
+      sectionsLoaded,
+      realTimeConnected: isConnected,
+      newDealsCount,
+      lastRealTimeUpdate: lastUpdate
+    });
+    logThrottleRef.current = now;
+  }
 
   // Show full loading skeleton only on initial load
   if (loading && !metrics && recentDeals.length === 0) {
@@ -360,7 +365,7 @@ export default function Dashboard() {
             <div className="w-8 h-8 bg-brand-yellow rounded-lg flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-brand-charcoal" />
             </div>
-            <h1 className="text-xl font-bold font-heading">MooMoo Climate</h1>
+            <h1 className="text-xl font-bold font-heading text-shadow-black">MooMoo Climate</h1>
           </div>
         </div>
 
@@ -368,7 +373,7 @@ export default function Dashboard() {
         <nav className="flex-1 p-4 space-y-2">
           <Button 
             variant="secondary" 
-            className="w-full justify-start bg-brand-yellow text-white hover:bg-brand-yellow/90"
+            className="w-full justify-start bg-brand-yellow text-white hover:bg-brand-yellow/90 text-shadow-black-subtle"
             onClick={() => analytics.trackFeatureUsage('navigation-dashboard')}
           >
             <Home className="w-4 h-4 mr-3" />
@@ -376,33 +381,33 @@ export default function Dashboard() {
           </Button>
           <Button 
             variant="ghost" 
-            className="w-full justify-start text-white hover:bg-brand-blue/80"
+            className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle"
             onClick={() => analytics.trackFeatureUsage('navigation-search')}
           >
             <Search className="w-4 h-4 mr-3" />
             Advanced Search
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <History className="w-4 h-4 mr-3" />
             History
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <Bookmark className="w-4 h-4 mr-3" />
             Saved Searches
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <Database className="w-4 h-4 mr-3" />
             Saved Lists
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <FileText className="w-4 h-4 mr-3" />
             Reports
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <MessageSquare className="w-4 h-4 mr-3" />
             News
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80">
+          <Button variant="ghost" className="w-full justify-start text-white hover:bg-brand-blue/80 text-shadow-black-subtle">
             <Activity className="w-4 h-4 mr-3" />
             Plugins & Apps
           </Button>
@@ -423,7 +428,7 @@ export default function Dashboard() {
         <header className="bg-white/90 backdrop-blur-sm border-b border-white/20 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold font-heading text-brand-yellow">MooMoo Climate</h1>
+              <h1 className="text-2xl font-bold font-heading text-brand-yellow text-shadow-heavy">MooMoo Climate</h1>
               <div className="flex items-center space-x-2">
                 <Button variant="outline" size="sm">
                   <Plus className="w-4 h-4 mr-2" />
@@ -541,7 +546,7 @@ export default function Dashboard() {
                 <Card className="lg:col-span-1 bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLOSED DEALS</CardTitle>
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">CLOSED DEALS</CardTitle>
                       <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
                   </CardHeader>
@@ -616,7 +621,7 @@ export default function Dashboard() {
                 <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.1s' }}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">QUICK COUNTS</CardTitle>
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">QUICK COUNTS</CardTitle>
                       <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
                   </CardHeader>
@@ -691,7 +696,7 @@ export default function Dashboard() {
                 <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.2s' }}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">DEALS BY REGIONS</CardTitle>
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">DEALS BY REGIONS</CardTitle>
                       <div className="flex items-center space-x-2">
                         <select className="text-xs border border-gray-300 rounded px-2 py-1">
                           <option>World ({metrics?.totalDeals || 0})</option>
@@ -751,7 +756,7 @@ export default function Dashboard() {
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">RECENT FUNDING ROUNDS</CardTitle>
+                        <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">RECENT FUNDING ROUNDS</CardTitle>
                         {/* New deals badge */}
                         <div className="relative">
                           <NewDealsBadge 
@@ -831,7 +836,7 @@ export default function Dashboard() {
               <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.4s' }}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">TOP COMPANY SIGNALS</CardTitle>
+                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">TOP COMPANY SIGNALS</CardTitle>
                     <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                   </div>
                 </CardHeader>
@@ -927,7 +932,7 @@ export default function Dashboard() {
               <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.5s' }}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE TECH NEWS</CardTitle>
+                    <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">CLIMATE TECH NEWS</CardTitle>
                     <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                   </div>
                 </CardHeader>
@@ -977,7 +982,7 @@ export default function Dashboard() {
                 <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg animate-progressive-load" style={{ animationDelay: '0.6s' }}>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide">CLIMATE FUND RETURNS</CardTitle>
+                      <CardTitle className="text-sm font-medium text-brand-charcoal uppercase tracking-wide text-shadow-black-subtle">CLIMATE FUND RETURNS</CardTitle>
                       <MoreHorizontal className="w-4 h-4 text-brand-charcoal/60" />
                     </div>
                   </CardHeader>

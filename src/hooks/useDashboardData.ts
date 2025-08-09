@@ -22,7 +22,10 @@ export interface UseDashboardDataReturn {
 
 export function useDashboardData(options: UseDashboardDataOptions = {}): UseDashboardDataReturn {
   const hookId = useRef(Math.random().toString(36).substr(2, 9));
-  console.log('🎯 useDashboardData: Hook starting with options:', options, 'hookId:', hookId.current);
+  // Reduced logging - only log hook initialization
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🎯 useDashboardData: Hook initialized with options:', options);
+  }
   
   // Extract and memoize options to prevent unnecessary re-renders
   const recentDealsLimit = options.recentDealsLimit || 5;
@@ -41,11 +44,12 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
 
-  console.log('🎯 useDashboardData: States initialized, about to set up data fetch, hookId:', hookId.current);
-
   // Fetch data function
   const fetchData = useCallback(async (isRefetch = false) => {
-    console.log('🚀 useDashboardData: fetchData called with isRefetch:', isRefetch, 'hookId:', hookId.current);
+    // Reduced logging frequency
+    if (process.env.NODE_ENV === 'development' && !isRefetch) {
+      console.log('🚀 useDashboardData: Fetching initial data');
+    }
     
     // Set loading state immediately
     if (mountedRef.current) {
@@ -58,13 +62,11 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
     }
     
     try {
-      console.log('🚀 useDashboardData: Calling APIs...');
+      // Make parallel API calls
       const [metricsResponse, dealsResponse] = await Promise.all([
         FundingService.getDashboardMetrics(),
         FundingService.getRecentDeals(recentDealsLimit)
       ]);
-      
-      console.log('🚀 useDashboardData: API responses received');
       
       // Check for API errors
       if (metricsResponse.error || dealsResponse.error) {
@@ -74,13 +76,11 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
       
       // Update state if component is still mounted
       if (mountedRef.current) {
-        console.log('🚀 useDashboardData: Setting data');
         setMetrics(metricsResponse.data);
         setRecentDeals(dealsResponse.data || []);
         setLastUpdated(new Date());
         
         // Clear loading state immediately after setting data
-        console.log('🚀 useDashboardData: Clearing loading state immediately');
         setLoading(false);
         setIsRefetching(false);
         
@@ -88,7 +88,9 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
           onDataUpdate(metricsResponse.data, dealsResponse.data || []);
         }
         
-        console.log('🚀 useDashboardData: Data updated successfully!');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🚀 useDashboardData: Data updated successfully');
+        }
       }
       
     } catch (err) {

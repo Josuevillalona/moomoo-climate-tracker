@@ -137,6 +137,14 @@ class UserAnalytics {
   private currentSessionId: string;
   private maxStorageSize = 5000; // Maximum number of records to keep
   private listeners: Array<(event: any) => void> = [];
+  
+  // Throttling for performance error logging
+  private lastPerformanceLogTime = new Map<string, number>();
+  private performanceLogThrottle = 30000; // 30 seconds between similar performance logs
+  
+  // Updated thresholds
+  private readonly SLOW_LOAD_THRESHOLD = 5000; // 5 seconds instead of 3
+  private readonly CRITICAL_LOAD_THRESHOLD = 10000; // 10 seconds for critical logging
 
   constructor() {
     this.currentSessionId = this.generateSessionId();
@@ -175,14 +183,27 @@ class UserAnalytics {
     this.trimStorage();
     this.notifyListeners({ type: 'dashboardLoad', data: loadMetric });
 
-    // Log slow loads
-    if (loadMetric.totalLoadTime > 3000) {
-      errorLogger.logPerformanceError(
-        'Slow Dashboard Load',
-        loadMetric.totalLoadTime,
-        3000,
-        { loadMetric }
-      );
+    // Log slow loads with throttling to reduce spam
+    if (loadMetric.totalLoadTime > this.SLOW_LOAD_THRESHOLD) {
+      const operationKey = 'Slow Dashboard Load';
+      const now = Date.now();
+      const lastLogTime = this.lastPerformanceLogTime.get(operationKey) || 0;
+      
+      // Only log if enough time has passed since last log, or if it's critically slow
+      if (now - lastLogTime > this.performanceLogThrottle || loadMetric.totalLoadTime > this.CRITICAL_LOAD_THRESHOLD) {
+        this.lastPerformanceLogTime.set(operationKey, now);
+        
+        errorLogger.logPerformanceError(
+          'Slow Dashboard Load',
+          loadMetric.totalLoadTime,
+          this.SLOW_LOAD_THRESHOLD,
+          { 
+            loadMetric,
+            isThrottled: true,
+            timeSinceLastLog: now - lastLogTime 
+          }
+        );
+      }
     }
   }
 
@@ -599,9 +620,9 @@ class UserAnalytics {
           if (entry.entryType === 'navigation') {
             const navEntry = entry as PerformanceNavigationTiming;
             this.trackDashboardLoad({
-              totalLoadTime: navEntry.loadEventEnd - navEntry.navigationStart,
-              timeToFirstByte: navEntry.responseStart - navEntry.navigationStart,
-              domContentLoaded: navEntry.domContentLoadedEventEnd - navEntry.navigationStart,
+              totalLoadTime: navEntry.loadEventEnd - navEntry.fetchStart,
+              timeToFirstByte: navEntry.responseStart - navEntry.fetchStart,
+              domContentLoaded: navEntry.domContentLoadedEventEnd - navEntry.fetchStart,
               connectionType: (navigator as any).connection?.effectiveType
             });
           }

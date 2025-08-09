@@ -5,11 +5,6 @@ const supabase = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdweGJiemR4eHRsaWJzanltbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzNTMxNTcsImV4cCI6MjA2OTkyOTE1N30.JW6Erge0BZ85mOTSqb3e-C8_-polfRfUOnUuFBYt_O4'
 );
 
-const supabase = createClient(
-  'https://gpxbbzdxxtlibsjymmsy.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdweGJiemR4eHRsaWJzanlvbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxNjk2MzksImV4cCI6MjA0ODc0NTYzOX0.HBJkPCOBEU69pxfyKtIp8lTZfGIaKbCOgJJF7O_iqLI'
-);
-
 async function addSampleData() {
   console.log('Adding sample climate tech deals...');
   

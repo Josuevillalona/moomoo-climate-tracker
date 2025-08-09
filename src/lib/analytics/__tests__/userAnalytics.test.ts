@@ -4,6 +4,37 @@
 
 import { userAnalytics, UserInteractionType, RefreshType } from '../userAnalytics';
 
+// Mock errorLogger
+jest.mock('../../monitoring/errorLogger', () => ({
+  errorLogger: {
+    logPerformanceError: jest.fn(),
+    logError: jest.fn()
+  }
+}));
+
+// Mock performanceMonitor
+jest.mock('../../monitoring/performanceMonitor', () => ({
+  performanceMonitor: {
+    trackOperation: jest.fn(),
+    recordMetric: jest.fn(),
+    measureSync: jest.fn((fn, name, category, metadata) => {
+      // Just execute the function if provided
+      if (typeof fn === 'function') {
+        return fn();
+      }
+    })
+  },
+  PerformanceCategory: {
+    API_CALL: 'api_call',
+    DATABASE_QUERY: 'database_query',
+    REALTIME_CONNECTION: 'realtime_connection',
+    UI_RENDER: 'ui_render',
+    DATA_TRANSFORMATION: 'data_transformation',
+    CACHE_OPERATION: 'cache_operation',
+    NETWORK_REQUEST: 'network_request'
+  }
+}));
+
 // Mock performance API
 const mockPerformance = {
   now: jest.fn(() => Date.now()),
@@ -83,15 +114,26 @@ describe('UserAnalytics', () => {
     });
 
     it('should log slow dashboard loads', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const { errorLogger } = require('../../monitoring/errorLogger');
+      const logPerformanceErrorSpy = jest.spyOn(errorLogger, 'logPerformanceError');
 
       userAnalytics.trackDashboardLoad({
-        totalLoadTime: 5000 // Slow load
+        totalLoadTime: 6000 // Slow load that exceeds threshold (5000ms)
       });
 
-      // Should trigger slow load warning
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+      // Should trigger slow load warning through errorLogger
+      expect(logPerformanceErrorSpy).toHaveBeenCalledWith(
+        'Slow Dashboard Load',
+        6000,
+        5000, // SLOW_LOAD_THRESHOLD
+        expect.objectContaining({
+          loadMetric: expect.any(Object),
+          isThrottled: true,
+          timeSinceLastLog: expect.any(Number)
+        })
+      );
+      
+      logPerformanceErrorSpy.mockRestore();
     });
   });
 
