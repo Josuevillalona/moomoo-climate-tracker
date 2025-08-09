@@ -108,19 +108,19 @@ const mockRevokeObjectURL = jest.fn();
 const originalAppendChild = document.body.appendChild.bind(document.body);
 const originalRemoveChild = document.body.removeChild.bind(document.body);
 
-document.body.appendChild = jest.fn((node) => {
-  if (node === mockAnchorElement) {
+document.body.appendChild = jest.fn(<T extends Node>(node: T): T => {
+  if ((node as any) === mockAnchorElement) {
     return node;
   }
-  return originalAppendChild(node);
-});
+  return originalAppendChild(node) as T;
+}) as any;
 
-document.body.removeChild = jest.fn((node) => {
-  if (node === mockAnchorElement) {
+document.body.removeChild = jest.fn(<T extends Node>(node: T): T => {
+  if ((node as any) === mockAnchorElement) {
     return node;
   }
-  return originalRemoveChild(node);
-});
+  return originalRemoveChild(node) as T;
+}) as any;
 
 // Only mock createElement for anchor elements
 document.createElement = mockCreateElement as any;
@@ -468,7 +468,7 @@ describe('usePerformanceAnalytics', () => {
       'failing-operation',
       expect.any(Number),
       false,
-      { error: 'Test error' }
+      { errorMessage: 'Test error' }
     );
     expect(result.current.performanceMetrics.errorCount).toBe(1);
   });

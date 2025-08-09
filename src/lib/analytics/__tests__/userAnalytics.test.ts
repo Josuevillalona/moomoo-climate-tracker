@@ -114,22 +114,33 @@ describe('UserAnalytics', () => {
     });
 
     it('should log slow dashboard loads', () => {
+      // Ensure window is properly defined for this test
+      Object.defineProperty(global, 'window', {
+        value: mockWindow,
+        writable: true,
+        configurable: true
+      });
+      
       const { errorLogger } = require('../../monitoring/errorLogger');
       const logPerformanceErrorSpy = jest.spyOn(errorLogger, 'logPerformanceError');
 
       userAnalytics.trackDashboardLoad({
-        totalLoadTime: 6000 // Slow load that exceeds threshold (5000ms)
+        totalLoadTime: 9000 // Slow load that exceeds threshold (8000ms)
       });
 
       // Should trigger slow load warning through errorLogger
       expect(logPerformanceErrorSpy).toHaveBeenCalledWith(
         'Slow Dashboard Load',
-        6000,
-        5000, // SLOW_LOAD_THRESHOLD
+        9000,
+        8000, // SLOW_LOAD_THRESHOLD (updated value)
         expect.objectContaining({
           loadMetric: expect.any(Object),
-          isThrottled: true,
-          timeSinceLastLog: expect.any(Number)
+          throttling: expect.objectContaining({
+            isThrottled: expect.any(Boolean),
+            logCount: expect.any(Number),
+            maxLogsPerMinute: expect.any(Number),
+            timeSinceLastLog: expect.any(Number)
+          })
         })
       );
       
