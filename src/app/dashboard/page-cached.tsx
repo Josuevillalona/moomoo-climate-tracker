@@ -622,7 +622,7 @@ export default function DashboardCached() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg font-semibold text-brand-charcoal">Recent Funding Rounds</CardTitle>
                       {newDealsCount > 0 && (
-                        <NewDealsBadge count={newDealsCount} onClick={() => setShowNewDealsNotification(true)} />
+                        <NewDealsBadge count={newDealsCount} isVisible={true} />
                       )}
                     </div>
                   </CardHeader>

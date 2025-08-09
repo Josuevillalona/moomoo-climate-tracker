@@ -140,23 +140,32 @@ class UserAnalytics {
   
   // Throttling for performance error logging
   private lastPerformanceLogTime = new Map<string, number>();
-  private performanceLogThrottle = 30000; // 30 seconds between similar performance logs
+  private performanceLogThrottle = 60000; // 60 seconds between similar performance logs
+  private performanceLogCount = new Map<string, number>();
+  private maxPerformanceLogsPerMinute = 2; // Maximum 2 logs per minute for same operation
   
   // Updated thresholds
-  private readonly SLOW_LOAD_THRESHOLD = 5000; // 5 seconds instead of 3
-  private readonly CRITICAL_LOAD_THRESHOLD = 10000; // 10 seconds for critical logging
+  private readonly SLOW_LOAD_THRESHOLD = 8000; // 8 seconds - more reasonable threshold
+  private readonly CRITICAL_LOAD_THRESHOLD = 15000; // 15 seconds for critical logging
 
   constructor() {
     this.currentSessionId = this.generateSessionId();
-    this.initializeSession();
-    this.setupEventListeners();
-    this.startPerformanceObserver();
+    
+    // Only initialize client-side features if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      this.initializeSession();
+      this.setupEventListeners();
+      this.startPerformanceObserver();
+    }
   }
 
   /**
    * Track dashboard load performance
    */
   trackDashboardLoad(metrics: Partial<DashboardLoadMetrics>): void {
+    // Skip if running on server-side
+    if (typeof window === 'undefined') return;
+    
     const loadMetric: DashboardLoadMetrics = {
       id: this.generateId(),
       sessionId: this.currentSessionId,
@@ -183,26 +192,63 @@ class UserAnalytics {
     this.trimStorage();
     this.notifyListeners({ type: 'dashboardLoad', data: loadMetric });
 
-    // Log slow loads with throttling to reduce spam
+    // Enhanced throttling for slow load logging to prevent spam
     if (loadMetric.totalLoadTime > this.SLOW_LOAD_THRESHOLD) {
       const operationKey = 'Slow Dashboard Load';
       const now = Date.now();
       const lastLogTime = this.lastPerformanceLogTime.get(operationKey) || 0;
+      const logCount = this.performanceLogCount.get(operationKey) || 0;
       
-      // Only log if enough time has passed since last log, or if it's critically slow
-      if (now - lastLogTime > this.performanceLogThrottle || loadMetric.totalLoadTime > this.CRITICAL_LOAD_THRESHOLD) {
+      // Reset log count every minute
+      const minutesSinceLastLog = (now - lastLogTime) / 60000;
+      if (minutesSinceLastLog >= 1) {
+        this.performanceLogCount.set(operationKey, 0);
+      }
+      
+      // Only log if:
+      // 1. It's been more than the throttle time since last log, OR
+      // 2. It's critically slow (always log these), OR
+      // 3. We haven't exceeded the max logs per minute
+      const shouldLog = (
+        (now - lastLogTime > this.performanceLogThrottle) ||
+        (loadMetric.totalLoadTime > this.CRITICAL_LOAD_THRESHOLD) ||
+        (logCount < this.maxPerformanceLogsPerMinute && minutesSinceLastLog < 1)
+      );
+      
+      if (shouldLog) {
         this.lastPerformanceLogTime.set(operationKey, now);
+        this.performanceLogCount.set(operationKey, logCount + 1);
         
         errorLogger.logPerformanceError(
           'Slow Dashboard Load',
           loadMetric.totalLoadTime,
           this.SLOW_LOAD_THRESHOLD,
           { 
-            loadMetric,
-            isThrottled: true,
-            timeSinceLastLog: now - lastLogTime 
+            loadMetric: {
+              sessionId: loadMetric.sessionId,
+              timestamp: loadMetric.timestamp,
+              totalLoadTime: loadMetric.totalLoadTime,
+              apiCallsCount: loadMetric.apiCallsCount,
+              errorCount: loadMetric.errorCount
+            },
+            throttling: {
+              isThrottled: true,
+              timeSinceLastLog: now - lastLogTime,
+              logCount: logCount + 1,
+              maxLogsPerMinute: this.maxPerformanceLogsPerMinute
+            }
           }
         );
+      } else {
+        // Optional: Log that we're skipping this log due to throttling
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🚦 Performance logging throttled for ${operationKey}:`, {
+            loadTime: loadMetric.totalLoadTime,
+            timeSinceLastLog: now - lastLogTime,
+            logCount,
+            maxLogsPerMinute: this.maxPerformanceLogsPerMinute
+          });
+        }
       }
     }
   }
@@ -581,7 +627,26 @@ class UserAnalytics {
     // Track clicks
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
-      const element = target.tagName.toLowerCase() + (target.id ? `#${target.id}` : '') + (target.className ? `.${target.className.split(' ')[0]}` : '');
+      
+      // Safely handle className - it might be a string or DOMTokenList
+      let className = '';
+      if (target.className) {
+        try {
+          if (typeof target.className === 'string') {
+            className = target.className.split(' ')[0];
+          } else {
+            // Handle DOMTokenList or other className types
+            className = String(target.className).split(' ')[0];
+          }
+        } catch (error) {
+          // Fallback if className handling fails
+          className = '';
+        }
+      }
+      
+      const element = target.tagName.toLowerCase() + 
+        (target.id ? '#' + target.id : '') + 
+        (className ? '.' + className : '');
       
       this.trackInteraction(
         UserInteractionType.CLICK,
@@ -613,18 +678,31 @@ class UserAnalytics {
 
   private startPerformanceObserver(): void {
     if ('PerformanceObserver' in window) {
-      // Observe navigation timing
+      // Observe navigation timing - but throttle the tracking calls
       const navObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry) => {
           if (entry.entryType === 'navigation') {
             const navEntry = entry as PerformanceNavigationTiming;
-            this.trackDashboardLoad({
-              totalLoadTime: navEntry.loadEventEnd - navEntry.fetchStart,
-              timeToFirstByte: navEntry.responseStart - navEntry.fetchStart,
-              domContentLoaded: navEntry.domContentLoadedEventEnd - navEntry.fetchStart,
-              connectionType: (navigator as any).connection?.effectiveType
-            });
+            const loadTime = navEntry.loadEventEnd - navEntry.fetchStart;
+            
+            // Only track if the load time is reasonable (avoid tracking page refreshes, etc.)
+            if (loadTime > 0 && loadTime < 60000) { // Between 0 and 60 seconds
+              const now = Date.now();
+              const lastLogTime = this.lastPerformanceLogTime.get('navigation-observer') || 0;
+              
+              // Throttle navigation observer tracking to once per minute
+              if (now - lastLogTime > 60000) {
+                this.lastPerformanceLogTime.set('navigation-observer', now);
+                
+                this.trackDashboardLoad({
+                  totalLoadTime: loadTime,
+                  timeToFirstByte: navEntry.responseStart - navEntry.fetchStart,
+                  domContentLoaded: navEntry.domContentLoadedEventEnd - navEntry.fetchStart,
+                  connectionType: (navigator as any).connection?.effectiveType
+                });
+              }
+            }
           }
         });
       });
@@ -635,7 +713,7 @@ class UserAnalytics {
         console.warn('Navigation timing observer not supported');
       }
 
-      // Observe paint timing
+      // Observe paint timing - but throttle the tracking calls
       const paintObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const paintMetrics: Partial<DashboardLoadMetrics> = {};
@@ -647,7 +725,14 @@ class UserAnalytics {
         });
 
         if (Object.keys(paintMetrics).length > 0) {
-          this.trackDashboardLoad(paintMetrics);
+          const now = Date.now();
+          const lastLogTime = this.lastPerformanceLogTime.get('paint-observer') || 0;
+          
+          // Throttle paint observer tracking to once per minute
+          if (now - lastLogTime > 60000) {
+            this.lastPerformanceLogTime.set('paint-observer', now);
+            this.trackDashboardLoad(paintMetrics);
+          }
         }
       });
 
@@ -683,13 +768,24 @@ class UserAnalytics {
   }
 
   private getDeviceInfo(): UserSessionMetrics['deviceInfo'] {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return {
+        type: 'unknown',
+        browser: 'unknown',
+        os: 'unknown',
+        screenSize: 'unknown',
+        connectionType: 'unknown'
+      };
+    }
+
     const ua = navigator.userAgent;
     return {
       type: /Mobile|Android|iPhone|iPad/.test(ua) ? 'mobile' : 'desktop',
       browser: this.getBrowserName(ua),
       os: this.getOSName(ua),
-      screenSize: `${screen.width}x${screen.height}`,
-      connectionType: (navigator as any).connection?.effectiveType
+      screenSize: typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : 'unknown',
+      connectionType: (navigator as any).connection?.effectiveType || 'unknown'
     };
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,6 @@ import { useRealTimeDeals } from "@/hooks/useRealTimeDeals";
 import { FundingDeal } from "@/types/api";
 import { useDashboardAnalytics } from "@/hooks/useAnalytics";
 import { RefreshType } from "@/lib/analytics/userAnalytics";
-import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { 
   MetricsCardLoading,
   TopMetricsLoading,
@@ -56,6 +56,7 @@ import {
   LoadingTransition,
   SectionLoadingIndicator
 } from "@/components/dashboard/LoadingStates";
+import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { 
   SectionErrorBoundary,
@@ -70,7 +71,6 @@ import {
   SectionErrorDisplay
 } from "@/components/dashboard/ErrorFallbacks";
 import { NewDealsNotification, CompactNewDealsIndicator, NewDealsBadge } from "@/components/dashboard/NewDealsNotification";
-import RealTimeDebug from "@/components/debug/RealTimeDebug";
 import { NewDealHighlight, AnimatedDealItem, useNewDealHighlights } from "@/components/dashboard/NewDealHighlight";
 import { useNotifications, NotificationContainer } from "@/components/ui/notification";
 
@@ -114,9 +114,10 @@ export default function Dashboard() {
 
   const { metrics, recentDeals, loading, error, refetch, isRefetching } = useDashboardData(dashboardOptions);
   
-  // Analytics tracking
+  // Analytics tracking with auto-tracking disabled to prevent conflicts
   const analytics = useDashboardAnalytics();
   const dashboardLoadStart = useRef<number>(Date.now());
+  const loadTracked = useRef<boolean>(false); // Prevent multiple load tracking calls
 
   // Memoized callback functions for real-time deals
   const onNewDeal = useCallback((deal: FundingDeal) => {
@@ -137,7 +138,7 @@ export default function Dashboard() {
     });
     // Automatically refresh dashboard data when new deal arrives
     refetch();
-  }, [refetch, analytics]);
+  }, [refetch]); // Removed analytics from dependencies
 
   const onConnectionChange = useCallback((connected: boolean) => {
     console.log('🔴 Real-time connection status:', connected);
@@ -196,9 +197,17 @@ export default function Dashboard() {
     });
     setSectionsLoaded(newSectionsLoaded);
 
-    // Track dashboard load completion when all sections are loaded
-    if (newSectionsLoaded.metrics && newSectionsLoaded.recentDeals && !loading) {
+    // Track dashboard load completion when all sections are loaded (only once per session)
+    if (newSectionsLoaded.metrics && newSectionsLoaded.recentDeals && !loading && !loadTracked.current) {
       const loadTime = Date.now() - dashboardLoadStart.current;
+      loadTracked.current = true; // Mark as tracked to prevent duplicate calls
+      
+      console.log('📊 Dashboard: Tracking load completion:', {
+        loadTime,
+        apiCalls: 2,
+        errors: error ? 1 : 0
+      });
+      
       analytics.trackDashboardLoad({
         totalLoadTime: loadTime,
         apiCallsCount: 2, // metrics + recent deals
@@ -207,7 +216,7 @@ export default function Dashboard() {
         timestamp: new Date()
       });
     }
-  }, [metrics, recentDeals, loading, error, analytics]);
+  }, [metrics, recentDeals, loading, error]); // Removed analytics from dependencies
 
   // Handle new deals notifications with enhanced system
   useEffect(() => {
@@ -234,7 +243,7 @@ export default function Dashboard() {
       
       setNotificationTimeout(timeout);
     }
-  }, [newDealsCount, showNewDealsNotification, notificationTimeout, addNotification]);
+  }, [newDealsCount, showNewDealsNotification]); // Removed notificationTimeout
 
   // Cleanup notification timeout on unmount
   useEffect(() => {
@@ -243,7 +252,7 @@ export default function Dashboard() {
         clearTimeout(notificationTimeout);
       }
     };
-  }, [notificationTimeout]);
+  }, []); // Run only on unmount
 
   // Clear new deal highlights after 15 seconds
   useEffect(() => {
@@ -255,7 +264,14 @@ export default function Dashboard() {
       
       return () => clearTimeout(timeout);
     }
-  }, [newDealIds, clearHighlights]);
+  }, [newDealIds]); // Removed clearHighlights from dependencies
+
+  // Reset load tracking when component unmounts or dashboard reloads
+  useEffect(() => {
+    return () => {
+      loadTracked.current = false;
+    };
+  }, []);
 
   // Debug logging (throttled to reduce spam)
   const logThrottleRef = useRef<number>(0);
@@ -411,6 +427,16 @@ export default function Dashboard() {
             <Activity className="w-4 h-4 mr-3" />
             Plugins & Apps
           </Button>
+          
+          {/* Debug link - only in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <Link href="/debug">
+              <Button variant="ghost" className="w-full justify-start text-orange-300 hover:bg-orange-600/20 text-shadow-black-subtle">
+                <Settings className="w-4 h-4 mr-3" />
+                Debug Console
+              </Button>
+            </Link>
+          )}
         </nav>
 
         {/* Hide Sidebar Button */}
@@ -1079,13 +1105,6 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
-      
-      {/* Debug Component - Remove in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4 w-96 max-h-96 overflow-hidden z-50">
-          <RealTimeDebug />
-        </div>
-      )}
     </div>
     </ErrorBoundary>
   );

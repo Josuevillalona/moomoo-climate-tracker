@@ -58,6 +58,13 @@ class ErrorLogger {
   private maxErrors = 1000; // Keep last 1000 errors
   private errorCounts = new Map<string, number>();
   private listeners: Array<(error: ErrorLogEntry) => void> = [];
+  
+  // Circuit breaker for performance logging
+  private performanceErrorCount = 0;
+  private performanceErrorWindow = 60000; // 1 minute window
+  private performanceErrorWindowStart = Date.now();
+  private maxPerformanceErrorsPerWindow = 5; // Max 5 performance errors per minute
+  private performanceLoggingDisabled = false;
 
   /**
    * Log an error with structured information
@@ -200,6 +207,39 @@ class ErrorLogger {
     threshold: number,
     context?: Record<string, any>
   ): string {
+    // Extra safeguard: prevent logging performance errors about performance error logging itself
+    if (operation.toLowerCase().includes('performance') && operation.toLowerCase().includes('error')) {
+      console.warn('🚦 Prevented recursive performance error logging for:', operation);
+      return 'skipped-recursive';
+    }
+    
+    // Circuit breaker: check if performance logging should be disabled
+    const now = Date.now();
+    
+    // Reset window if enough time has passed
+    if (now - this.performanceErrorWindowStart > this.performanceErrorWindow) {
+      this.performanceErrorCount = 0;
+      this.performanceErrorWindowStart = now;
+      this.performanceLoggingDisabled = false;
+    }
+    
+    // Check if we've exceeded the limit
+    if (this.performanceErrorCount >= this.maxPerformanceErrorsPerWindow) {
+      if (!this.performanceLoggingDisabled) {
+        this.performanceLoggingDisabled = true;
+        console.warn('🔥 Performance error logging disabled due to too many errors. Will re-enable in 1 minute.');
+      }
+      return 'skipped-circuit-breaker';
+    }
+    
+    // If disabled, skip logging
+    if (this.performanceLoggingDisabled) {
+      return 'skipped-disabled';
+    }
+    
+    // Increment counter and proceed with logging
+    this.performanceErrorCount++;
+    
     const severity = duration > threshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
     
     return this.logError(
@@ -212,6 +252,11 @@ class ErrorLogger {
         duration,
         threshold,
         performanceIssue: true,
+        circuitBreaker: {
+          errorCount: this.performanceErrorCount,
+          maxErrors: this.maxPerformanceErrorsPerWindow,
+          windowStart: this.performanceErrorWindowStart
+        },
         ...context
       },
       false // Performance issues are not retryable

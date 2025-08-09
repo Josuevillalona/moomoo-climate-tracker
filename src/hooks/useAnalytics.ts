@@ -2,7 +2,7 @@
  * React hook for user analytics and performance metrics
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   userAnalytics, 
   UserInteractionType, 
@@ -53,7 +53,7 @@ const DEFAULT_OPTIONS: Required<UseAnalyticsOptions> = {
   trackPageViews: true,
   trackClicks: true,
   trackScrolling: true,
-  autoTrackLoadTime: true,
+  autoTrackLoadTime: false, // Disabled by default to prevent conflicts with manual tracking
   sessionTimeout: 30 * 60 * 1000 // 30 minutes
 };
 
@@ -81,12 +81,19 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
     if (opts.autoTrackLoadTime && !pageLoadTracked.current) {
       const trackLoadTime = () => {
         const loadTime = Date.now() - loadStartTime.current;
+        
+        // Prevent duplicate tracking
+        if (pageLoadTracked.current) {
+          return;
+        }
+        pageLoadTracked.current = true;
+        
+        console.log('📊 useAnalytics: Auto-tracking page load time:', loadTime);
         userAnalytics.trackDashboardLoad({
           totalLoadTime: loadTime,
           timestamp: new Date(),
           sessionId
         });
-        pageLoadTracked.current = true;
       };
 
       if (document.readyState === 'complete') {
@@ -201,6 +208,8 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
 export function useDashboardAnalytics() {
   const analytics = useAnalytics();
   const operationStartTimes = useRef<Map<string, number>>(new Map());
+  const lastTrackingTimes = useRef<Map<string, number>>(new Map());
+  const TRACKING_THROTTLE = 5000; // 5 seconds minimum between same type of tracking calls
 
   const startOperation = useCallback((operationName: string) => {
     operationStartTimes.current.set(operationName, Date.now());
@@ -233,16 +242,30 @@ export function useDashboardAnalytics() {
   }, [analytics]);
 
   const trackDashboardLoad = useCallback((loadMetrics: Partial<DashboardLoadMetrics>) => {
+    const now = Date.now();
+    const lastTrackTime = lastTrackingTimes.current.get('dashboardLoad') || 0;
+    
+    // Throttle dashboard load tracking to prevent spam
+    if (now - lastTrackTime < TRACKING_THROTTLE) {
+      console.log('🚦 Dashboard load tracking throttled:', {
+        timeSinceLastTrack: now - lastTrackTime,
+        threshold: TRACKING_THROTTLE
+      });
+      return;
+    }
+    
+    lastTrackingTimes.current.set('dashboardLoad', now);
     userAnalytics.trackDashboardLoad(loadMetrics);
   }, []);
 
-  return {
+  // Memoize the returned object to prevent unnecessary re-renders
+  return useMemo(() => ({
     ...analytics,
     startOperation,
     endOperation,
     trackDashboardInteraction,
     trackDashboardLoad
-  };
+  }), [analytics, startOperation, endOperation, trackDashboardInteraction, trackDashboardLoad]);
 }
 
 // Hook for performance monitoring
@@ -284,7 +307,7 @@ export function usePerformanceAnalytics() {
         operationName,
         duration,
         false,
-        { error: error instanceof Error ? error.message : 'Unknown error' }
+        { errorMessage: error instanceof Error ? error.message : 'Unknown error' }
       );
 
       setPerformanceMetrics(prev => ({
