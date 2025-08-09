@@ -1,15 +1,40 @@
 import '@testing-library/jest-dom';
 
+// Mock environment variables with proper JWT format
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+process.env.NODE_ENV = 'test';
+
 // Setup DOM environment for React Testing Library
 import { configure } from '@testing-library/react';
+import { cleanup } from '@testing-library/react';
 
-configure({ testIdAttribute: 'data-testid' });
+// Configure React Testing Library
+configure({ 
+  testIdAttribute: 'data-testid',
+});
 
-// Ensure document.body exists and is properly set up
-if (!document.body) {
-  document.body = document.createElement('body');
-  document.documentElement.appendChild(document.body);
+// Polyfill for React 18 compatibility with JSDOM
+if (typeof global !== 'undefined' && !global.IS_REACT_ACT_ENVIRONMENT) {
+  global.IS_REACT_ACT_ENVIRONMENT = true;
 }
+
+// Ensure proper JSDOM setup
+beforeAll(() => {
+  // Ensure document and window are properly set up
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.innerHTML = '';
+  }
+});
+
+// Ensure cleanup after each test
+afterEach(() => {
+  cleanup();
+  // Clean up DOM
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.innerHTML = '';
+  }
+});
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {

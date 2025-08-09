@@ -10,6 +10,7 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   testEnvironment: 'jsdom',
   testEnvironmentOptions: {
+    url: 'http://localhost:3000',
     customExportConditions: [''],
   },
   moduleNameMapper: {
@@ -17,6 +18,9 @@ const customJestConfig = {
     // Mock problematic modules
     '^@supabase/supabase-js$': '<rootDir>/src/__mocks__/supabase.js',
     '^@supabase/realtime-js$': '<rootDir>/src/__mocks__/realtime.js',
+    // Mock environment config
+    '^../config/environment$': '<rootDir>/src/__mocks__/environment.js',
+    '^../../lib/config/environment$': '<rootDir>/src/__mocks__/environment.js',
   },
   testPathIgnorePatterns: [
     '<rootDir>/.next/', 
@@ -39,10 +43,13 @@ const customJestConfig = {
   ],
   testTimeout: 15000,
   maxWorkers: '50%',
-  // Handle ES modules better
-  preset: undefined,
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+  // Better JSDOM setup
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        jsx: 'react-jsx',
+      },
+    },
   },
 }
 
