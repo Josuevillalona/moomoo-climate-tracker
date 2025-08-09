@@ -22,7 +22,27 @@ export async function testSupabaseRealTime() {
     console.log('2️⃣ Testing real-time subscription setup...');
     
     return new Promise((resolve) => {
+      let resolved = false; // Prevent multiple resolutions
       let timeoutId: NodeJS.Timeout;
+      let mainTimeoutId: NodeJS.Timeout;
+      
+      const cleanup = (channel: any) => {
+        if (resolved) return; // Already resolved, don't do anything
+        resolved = true;
+        
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        if (mainTimeoutId) {
+          clearTimeout(mainTimeoutId);
+        }
+        
+        try {
+          supabase.removeChannel(channel);
+        } catch (cleanupError) {
+          console.warn('Warning: Error during channel cleanup:', cleanupError);
+        }
+      };
       
       const channel = supabase
         .channel(`test-channel-${Date.now()}`)
@@ -40,36 +60,41 @@ export async function testSupabaseRealTime() {
         .subscribe((status, error) => {
           console.log('📡 Real-time subscription status:', status, error?.message || '');
           
+          if (resolved) return; // Already resolved, ignore this callback
+          
           if (error) {
             console.error('❌ Real-time subscription error:', error);
-            clearTimeout(timeoutId);
-            supabase.removeChannel(channel);
+            cleanup(channel);
             resolve({ success: false, error: error.message });
           } else if (status === 'SUBSCRIBED') {
             console.log('✅ Real-time subscription successful');
             
             // Clean up the test channel after a short delay
             timeoutId = setTimeout(() => {
-              supabase.removeChannel(channel);
-              resolve({ success: true });
+              if (!resolved) {
+                cleanup(channel);
+                resolve({ success: true });
+              }
             }, 2000);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error('❌ Real-time subscription failed with status:', status);
-            clearTimeout(timeoutId);
-            supabase.removeChannel(channel);
+            cleanup(channel);
             resolve({ success: false, error: `Subscription failed: ${status}` });
           } else if (status === 'CLOSED') {
             console.log('📡 Channel closed');
-            clearTimeout(timeoutId);
+            cleanup(channel);
             resolve({ success: false, error: 'Channel was closed' });
           }
+          // For other statuses like 'JOINING', do nothing and wait
         });
 
       // Set a timeout to avoid hanging
-      setTimeout(() => {
-        console.log('⏰ Real-time test timeout');
-        supabase.removeChannel(channel);
-        resolve({ success: false, error: 'Test timeout after 10 seconds' });
+      mainTimeoutId = setTimeout(() => {
+        if (!resolved) {
+          console.log('⏰ Real-time test timeout');
+          cleanup(channel);
+          resolve({ success: false, error: 'Test timeout after 10 seconds' });
+        }
       }, 10000);
     });
 
@@ -146,40 +171,64 @@ export async function checkRealtimeEnabled() {
 
     // The real test is trying to subscribe
     return new Promise((resolve) => {
+      let resolved = false; // Prevent multiple resolutions
+      let timeoutId: NodeJS.Timeout;
+      
+      const cleanup = (channel: any) => {
+        if (resolved) return; // Already resolved, don't do anything
+        resolved = true;
+        
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        try {
+          supabase.removeChannel(channel);
+        } catch (cleanupError) {
+          console.warn('Warning: Error during channel cleanup:', cleanupError);
+        }
+      };
+      
       const testChannel = supabase
         .channel(`realtime-check-${Date.now()}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'deals' }, () => {})
         .subscribe((status, error) => {
-          supabase.removeChannel(testChannel);
+          if (resolved) return; // Already resolved, ignore this callback
           
           if (error) {
+            cleanup(testChannel);
             resolve({
               enabled: false,
               error: error.message,
               suggestion: 'Real-time subscription failed. Check if real-time is enabled in Supabase dashboard.'
             });
           } else if (status === 'SUBSCRIBED') {
+            cleanup(testChannel);
             resolve({
               enabled: true,
               message: 'Real-time is properly configured'
             });
-          } else {
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            cleanup(testChannel);
             resolve({
               enabled: false,
               error: `Subscription status: ${status}`,
               suggestion: 'Real-time subscription did not complete successfully.'
             });
           }
+          // For other statuses like 'JOINING', do nothing and wait
         });
 
       // Timeout after 5 seconds
-      setTimeout(() => {
-        supabase.removeChannel(testChannel);
-        resolve({
-          enabled: false,
-          error: 'Subscription timeout',
-          suggestion: 'Real-time subscription timed out. This might indicate real-time is not enabled.'
-        });
+      timeoutId = setTimeout(() => {
+        if (!resolved) {
+          cleanup(testChannel);
+          resolve({
+            enabled: false,
+            error: 'Subscription timeout',
+            suggestion: 'Real-time subscription timed out. This might indicate real-time is not enabled.'
+          });
+        }
       }, 5000);
     });
 
