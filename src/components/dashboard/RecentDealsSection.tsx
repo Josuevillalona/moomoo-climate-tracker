@@ -7,6 +7,8 @@ import { NewDealsBadge, CompactNewDealsIndicator } from "@/components/dashboard/
 import { AnimatedDealItem } from "@/components/dashboard/NewDealHighlight";
 import { MoreHorizontal } from "lucide-react";
 import { FundingDeal, DashboardMetrics } from "@/types/api";
+import EnhancedFundingRoundsWidget from "@/components/enhanced-widgets/funding/EnhancedFundingRoundsWidget";
+import { FundingFilters } from "@/types/enhanced-widgets";
 
 interface RecentDealsSectionProps {
   recentDeals: FundingDeal[];
@@ -21,6 +23,7 @@ interface RecentDealsSectionProps {
   newDealIds: Set<number>;
   clearNewDeals: () => void;
   onRefetch: () => void;
+  size?: 'normal' | 'expanded';
 }
 
 export default function RecentDealsSection({ 
@@ -30,8 +33,64 @@ export default function RecentDealsSection({
   newDealsCount, 
   newDealIds, 
   clearNewDeals, 
-  onRefetch 
+  onRefetch,
+  size = 'normal'
 }: RecentDealsSectionProps) {
+  // Default filters for enhanced widget
+  const defaultFilters: FundingFilters = {
+    stages: [
+      { id: 'seed', name: 'Seed', selected: true },
+      { id: 'series-a', name: 'Series A', selected: true },
+      { id: 'series-b', name: 'Series B', selected: true },
+      { id: 'series-c', name: 'Series C+', selected: true },
+    ],
+    sectors: [],
+    fundingRange: { min: 0, max: 1000000000 },
+    dateRange: { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), end: new Date() },
+    keywords: []
+  };
+
+  const handleFilterChange = (filters: FundingFilters) => {
+    // TODO: Implement filter change logic in future tasks
+    console.log('Filter change:', filters);
+  };
+
+  // Use enhanced widget for expanded size
+  if (size === 'expanded') {
+    return (
+      <SectionErrorBoundary
+        sectionName="Recent Funding Rounds"
+        fallback={(error, retry) => (
+          <RecentDealsErrorFallback error={error} retry={retry} />
+        )}
+        resetKeys={[recentDeals.length].filter(key => key !== undefined)}
+      >
+        <LoadingTransition
+          isLoading={!sectionsLoaded.recentDeals}
+          loadingComponent={<RecentDealsLoading />}
+          delay={400}
+        >
+          <EnhancedFundingRoundsWidget
+            size="expanded"
+            filters={defaultFilters}
+            onFilterChange={handleFilterChange}
+            realTimeEnabled={true}
+            deals={recentDeals.map(deal => ({
+              ...deal,
+              signals: [],
+              relevanceScore: 0.8,
+              matchedFilters: [],
+              isNew: newDealIds.has(deal.id),
+            }))}
+            loading={!sectionsLoaded.recentDeals}
+            error={null}
+          />
+        </LoadingTransition>
+      </SectionErrorBoundary>
+    );
+  }
+
+  // Original compact widget for normal size
   return (
     <SectionErrorBoundary
       sectionName="Recent Funding Rounds"

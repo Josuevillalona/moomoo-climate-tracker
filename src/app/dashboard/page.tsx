@@ -279,23 +279,35 @@ export default function Dashboard() {
             {/* Top Row - Charts and Stats */}
             <ChartsSection metrics={metrics} sectionsLoaded={sectionsLoaded} />
 
-            {/* Second Row - Recent Deals, Company Signals, News */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <RecentDealsSection 
-                recentDeals={recentDeals}
-                metrics={metrics}
-                sectionsLoaded={sectionsLoaded}
-                newDealsCount={newDealsCount}
-                newDealIds={newDealIds}
-                clearNewDeals={clearNewDeals}
-                onRefetch={refetch}
-              />
-              <CompanySignalsSection 
-                recentDeals={recentDeals}
-                metrics={metrics}
-                sectionsLoaded={sectionsLoaded}
-              />
-              <NewsSection />
+            {/* Second Row - Recent Deals (Expanded), Company Signals, News */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Enhanced Recent Funding Rounds Widget - Responsive sizing */}
+              <div className="col-span-1 md:col-span-2 lg:col-span-2">
+                <RecentDealsSection 
+                  recentDeals={recentDeals}
+                  metrics={metrics}
+                  sectionsLoaded={sectionsLoaded}
+                  newDealsCount={newDealsCount}
+                  newDealIds={newDealIds}
+                  clearNewDeals={clearNewDeals}
+                  onRefetch={refetch}
+                  size="expanded"
+                />
+              </div>
+              
+              {/* Company Signals - Responsive sizing */}
+              <div className="col-span-1 md:col-span-1 lg:col-span-1">
+                <CompanySignalsSection 
+                  recentDeals={recentDeals}
+                  metrics={metrics}
+                  sectionsLoaded={sectionsLoaded}
+                />
+              </div>
+              
+              {/* News Section - Responsive sizing */}
+              <div className="col-span-1 md:col-span-1 lg:col-span-1">
+                <NewsSection />
+              </div>
             </div>
 
             {/* Third Row - Metrics and Fund Returns */}

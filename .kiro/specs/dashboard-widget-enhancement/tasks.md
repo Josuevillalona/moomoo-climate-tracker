@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [ ] 1. Set up enhanced widget infrastructure and types
+- [x] 1. Set up enhanced widget infrastructure and types
 
   - Create enhanced TypeScript interfaces for funding deals, news articles, and user preferences
   - Set up new component directory structure for enhanced widgets
   - Create base enhanced widget wrapper component with error boundaries
   - _Requirements: 1.1, 2.1, 3.1, 4.1_
 
-- [ ] 2. Implement expanded Recent Funding Rounds widget layout
+- [x] 2. Implement expanded Recent Funding Rounds widget layout
 
   - Modify dashboard grid layout to support 2x widget size (2 columns instead of 1)
   - Create expanded Recent Funding Rounds component with larger dimensions
