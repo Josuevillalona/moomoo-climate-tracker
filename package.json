@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/startup-log.js && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -42,6 +42,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.1",
     "lucide-react": "^0.400.0",
     "next": "14.2.5",
     "react": "^18.3.1",

@@ -19,7 +19,7 @@ export interface DatabaseDeal {
 
 // Transformed deal interface for UI display
 export interface FundingDeal {
-  id: number;
+  id: number | string; // Support both old (number) and new (string UUID) schema
   companyName: string;
   fundingStage: string;
   amountRaised: number;

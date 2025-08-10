@@ -137,14 +137,14 @@ export function AnimatedDealItem({
 }
 
 // Hook for managing new deal highlights
-export function useNewDealHighlights(dealIds: number[]) {
-  const [highlightedDeals, setHighlightedDeals] = useState<Set<number>>(new Set());
+export function useNewDealHighlights(dealIds: (number | string)[]) {
+  const [highlightedDeals, setHighlightedDeals] = useState<Set<number | string>>(new Set());
 
-  const addHighlight = (dealId: number) => {
+  const addHighlight = (dealId: number | string) => {
     setHighlightedDeals(prev => new Set(Array.from(prev).concat(dealId)));
   };
 
-  const removeHighlight = (dealId: number) => {
+  const removeHighlight = (dealId: number | string) => {
     setHighlightedDeals(prev => {
       const newSet = new Set(prev);
       newSet.delete(dealId);
@@ -156,7 +156,7 @@ export function useNewDealHighlights(dealIds: number[]) {
     setHighlightedDeals(new Set());
   };
 
-  const isHighlighted = (dealId: number) => {
+  const isHighlighted = (dealId: number | string) => {
     return highlightedDeals.has(dealId);
   };
 

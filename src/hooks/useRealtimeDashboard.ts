@@ -13,7 +13,7 @@ interface UseRealtimeDashboardOptions {
 export function useRealtimeDashboard({ onRefetch }: UseRealtimeDashboardOptions) {
   const analytics = useDashboardAnalytics();
   const { notifications, addNotification, dismissNotification } = useNotifications();
-  const [newDealIds, setNewDealIds] = useState<Set<number>>(new Set());
+  const [newDealIds, setNewDealIds] = useState<Set<number | string>>(new Set());
   const { isHighlighted, addHighlight, removeHighlight, clearHighlights } = useNewDealHighlights(Array.from(newDealIds));
   
   const [showNewDealsNotification, setShowNewDealsNotification] = useState(false);

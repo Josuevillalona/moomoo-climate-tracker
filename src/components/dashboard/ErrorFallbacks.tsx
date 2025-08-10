@@ -236,7 +236,7 @@ export function DashboardErrorFallback({ error, retry }: DashboardErrorFallbackP
                 Dashboard Temporarily Unavailable
               </h1>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                We're experiencing technical difficulties loading the dashboard. 
+                We&apos;re experiencing technical difficulties loading the dashboard. 
                 This is likely a temporary issue with our data services.
               </p>
               

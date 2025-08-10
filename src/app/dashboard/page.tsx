@@ -36,7 +36,7 @@ const user = {
 
 export default function Dashboard() {
   const dashboardOptions = useMemo(() => ({
-    recentDealsLimit: 5,
+    recentDealsLimit: 50, // 🔥 Increased to show more deals dynamically (was 15)
     enableAutoRefresh: true,
     autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
   }), []);
@@ -327,6 +327,7 @@ export default function Dashboard() {
             </div>
           </main>
         </div>
+
       </DashboardBackground>
     </ErrorBoundary>
   );
