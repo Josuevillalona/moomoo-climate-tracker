@@ -4,6 +4,15 @@ export { default as EnhancedFundingRoundsWidget } from './funding/EnhancedFundin
 export { default as EnhancedNewsWidget } from './news/EnhancedNewsWidget';
 export { default as ReportGeneratorWidget } from './reports/ReportGeneratorWidget';
 
+// Alex's Climate VC Dashboard Components
+export { 
+  AlexDashboard,
+  AlexProspectsWidget,
+  AIFocusedDealsWidget,
+  PipelineHealthWidget,
+  climateVCApi
+} from './alex';
+
 // Filter components
 export { default as FundingFilters } from './filters/FundingFilters';
 export { default as NewsFilters } from './filters/NewsFilters';
@@ -15,3 +24,4 @@ export { default as WidgetHeader } from './common/WidgetHeader';
 
 // Types
 export * from '../../types/enhanced-widgets';
+export * from '../../types/climate-schema';

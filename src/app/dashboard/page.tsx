@@ -279,10 +279,10 @@ export default function Dashboard() {
             {/* Top Row - Charts and Stats */}
             <ChartsSection metrics={metrics} sectionsLoaded={sectionsLoaded} />
 
-            {/* Second Row - Recent Deals (Expanded), Company Signals, News */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Enhanced Recent Funding Rounds Widget - Responsive sizing */}
-              <div className="col-span-1 md:col-span-2 lg:col-span-2">
+            {/* Second Row - Recent Deals (Full Width) */}
+            <div className="grid grid-cols-1 gap-6">
+              {/* Enhanced Recent Funding Rounds Widget - Full Width */}
+              <div className="col-span-1">
                 <RecentDealsSection 
                   recentDeals={recentDeals}
                   metrics={metrics}
@@ -294,9 +294,12 @@ export default function Dashboard() {
                   size="expanded"
                 />
               </div>
-              
+            </div>
+
+            {/* Third Row - Company Signals and News */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Company Signals - Responsive sizing */}
-              <div className="col-span-1 md:col-span-1 lg:col-span-1">
+              <div className="col-span-1">
                 <CompanySignalsSection 
                   recentDeals={recentDeals}
                   metrics={metrics}
@@ -305,7 +308,7 @@ export default function Dashboard() {
               </div>
               
               {/* News Section - Responsive sizing */}
-              <div className="col-span-1 md:col-span-1 lg:col-span-1">
+              <div className="col-span-1">
                 <NewsSection />
               </div>
             </div>
